@@ -23,6 +23,8 @@ this pipeline against them and reproduce the analyses on your own data.
 | `analyses/cache_economics.sql` | Cache-read leverage by session depth |
 | `analyses/session_endings.sql` | How sessions actually terminate |
 | `analyses/error_distribution.sql` | Which tools fail, how, and how often |
+| `analyses/fpk_count.py` | fpk overall + by category and month (raw JSONL, no mart needed) |
+| `analyses/fpk_correlate.py` | fpk by Claude model and CC version (raw JSONL, no mart needed) |
 | `audit/RUBRIC.md` | Verification-debt classification rubric |
 | `audit/prompt_template.md` | The per-row LLM prompt used in the audit |
 | `audit/classify.py` | Parallel classifier using the Anthropic API |
@@ -71,6 +73,13 @@ duckdb ~/data/claude_code.duckdb < analyses/model_drift.sql
 duckdb ~/data/claude_code.duckdb < analyses/cache_economics.sql
 duckdb ~/data/claude_code.duckdb < analyses/session_endings.sql
 duckdb ~/data/claude_code.duckdb < analyses/error_distribution.sql
+```
+
+The fpk analyses operate on raw JSONL directly (no mart required):
+
+```bash
+python3 analyses/fpk_count.py        # defaults to ~/.claude/projects/
+python3 analyses/fpk_correlate.py    # add --corpus PATH for non-default location
 ```
 
 ### 3. Run the verification-debt audit (optional)
@@ -129,6 +138,18 @@ The `analyses/` queries surface:
   the session ended.
 - **Auth is the #1 error mode** in API-integration-heavy corpora. ~51% of
   errors are authentication failures, not hallucinations or bad code.
+- **fpk: f-bombs per 1,000 prompts.** I scanned 5 months of my own
+  conversation logs: 44,212 prompts across 6,120 sessions. About one f-bomb
+  every 34 messages, roughly one per cup of coffee. Then I correlated the
+  rate with the Claude model reading the prompt and the Claude Code CLI
+  version running when I typed it. claude-opus-4-7 fpk: 11.11. Opus 4.6:
+  34.59. Opus 4.5: 38.11. A 3.4x reduction in observable rage across one
+  model family. CC 2.1.100+ fpk: 12.01. Mid-2.1 (peak): 40.03. A 3.3x
+  reduction across CLI versions. Haiku fpk: 0.00 — because Haiku is never
+  the orchestrator in my setup. By the time something has gone wrong, I'm
+  yelling at the model that *dispatched* it. The seat catches the wrath,
+  not the model. fpk is a frivolous-but-real proxy for visible friction in
+  a human-AI loop. See `analyses/fpk_count.py` and `analyses/fpk_correlate.py`.
 
 Your numbers will differ. That's the point — run it on your own logs.
 
