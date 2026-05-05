@@ -1,0 +1,26 @@
+# Data — never commit a corpus or a labeled audit
+*.duckdb
+*.duckdb.wal
+*.jsonl
+chunks/
+audit_sample*.csv
+audit_*_labeled.csv
+*.parquet
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.python-version
+
+# Editor
+.DS_Store
+.vscode/
+.idea/
+*.swp
+
+# Secrets
+.env
+.env.*
