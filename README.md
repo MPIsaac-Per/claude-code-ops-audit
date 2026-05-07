@@ -24,6 +24,7 @@ this pipeline against them and reproduce the analyses on your own data.
 | `analyses/session_endings.sql` | How sessions actually terminate |
 | `analyses/error_distribution.sql` | Which tools fail, how, and how often |
 | `analyses/field_manual_protocols.sql` | Field Manual query pack: autonomy half-life, agent loop map, verification-debt surface, stuckness cost, and rescue patterns |
+| `analyses/codex_telemetry_filtered.sql` | Codex/OpenTelemetry runtime analysis with stream-loop span and response-delta noise separated from operational telemetry |
 | `analyses/build_conversation_archive_catalog.py` | Catalog every rolling conversation blob while marking the canonical latest snapshot per session |
 | `analyses/build_telemetry_mart.py` | Build a sanitized OTLP telemetry mart with sensitive values suppressed and hashed |
 | `analyses/fpk_count.py` | fpk overall + by category and month (raw JSONL, no mart needed) |
@@ -33,7 +34,7 @@ this pipeline against them and reproduce the analyses on your own data.
 | `audit/classify.py` | Parallel classifier using the Anthropic API |
 | `skills/agentic-coding-field-manual/` | Codex skill for turning corpus data into public Field Manual research, protocols, and content |
 | `skills/claude-code-supercharger/` | Codex skill with evidence-backed Claude Code operating protocols |
-| `docs/PERSISTENCE.md` | Storage boundary for local runs, public repo machinery, and completed private knowledge base research |
+| `docs/PERSISTENCE.md` | Storage boundary for local runs, public repo machinery, and private research outputs |
 | `docs/METHODOLOGY.md` | Full walkthrough |
 
 ## What's NOT in here
@@ -113,6 +114,16 @@ python3 analyses/build_telemetry_mart.py \
   --out .runs/telemetry_mart
 ```
 
+Run the noise-filtered Codex runtime analysis with:
+
+```bash
+duckdb .runs/telemetry_mart/telemetry_mart.duckdb < analyses/codex_telemetry_filtered.sql
+```
+
+The raw telemetry export can contain many stream receive-loop spans and response
+delta logs inside a small number of conversations. Treat raw span/log counts as
+coverage, not as conversation volume.
+
 ### 3. Run the verification-debt audit (optional)
 
 The `plausible_completion_candidates` view flags assistant turns that look
@@ -169,18 +180,11 @@ The `analyses/` queries surface:
   the session ended.
 - **Auth is the #1 error mode** in API-integration-heavy corpora. ~51% of
   errors are authentication failures, not hallucinations or bad code.
-- **fpk: f-bombs per 1,000 prompts.** I scanned 5 months of my own
-  conversation logs: 44,212 prompts across 6,120 sessions. About one f-bomb
-  every 34 messages, roughly one per cup of coffee. Then I correlated the
-  rate with the Claude model reading the prompt and the Claude Code CLI
-  version running when I typed it. claude-opus-4-7 fpk: 11.11. Opus 4.6:
-  34.59. Opus 4.5: 38.11. A 3.4x reduction in observable rage across one
-  model family. CC 2.1.100+ fpk: 12.01. Mid-2.1 (peak): 40.03. A 3.3x
-  reduction across CLI versions. Haiku fpk: 0.00 — because Haiku is never
-  the orchestrator in my setup. By the time something has gone wrong, I'm
-  yelling at the model that *dispatched* it. The seat catches the wrath,
-  not the model. fpk is a frivolous-but-real proxy for visible friction in
-  a human-AI loop. See `analyses/fpk_count.py` and `analyses/fpk_correlate.py`.
+- **fpk: f-bombs per 1,000 prompts.** This optional friction analysis scans
+  prompt text for profanity markers and correlates the rate with model and CLI
+  version metadata. Treat it as a deliberately informal proxy for visible
+  frustration in a human-AI loop, not as a benchmark. See
+  `analyses/fpk_count.py` and `analyses/fpk_correlate.py`.
 
 Your numbers will differ. That's the point — run it on your own logs.
 
@@ -199,8 +203,8 @@ public operating system for agentic coding:
 The key thesis is that elite agentic coding is not just better prompting. It is
 management of the agent's execution loop.
 
-Completed Field Manual research should be promoted to private knowledge base, while this repo
-keeps reusable public machinery and `.runs/` stays local. See
+Completed Field Manual research should be promoted to a private knowledge base,
+while this repo keeps reusable public machinery and `.runs/` stays local. See
 `docs/PERSISTENCE.md`.
 
 ## Caveats baked into the methodology

@@ -4,12 +4,13 @@ This repo separates reusable public machinery from private research outputs.
 
 ## Storage Tiers
 
-### private knowledge base: Completed Research Source Of Truth
+### Private Knowledge Base: Completed Research Source Of Truth
 
-Completed Field Manual research belongs in private knowledge base:
+Completed Field Manual research belongs in your private knowledge base, not in
+this public methodology repo:
 
 ```text
-<user-home>/<private-cloud-storage>/<private-cloud-storage>/__Knowledge Base/private knowledge base/<private-knowledge-base>/private content/Research/claude-code-corpus/
+<private-knowledge-base>/agentic-coding-research/
 ```
 
 Use a timestamped Markdown brief for every completed analysis:
@@ -18,19 +19,19 @@ Use a timestamped Markdown brief for every completed analysis:
 YYYYMMDDHHMMSS_Field_Manual_<Finding_Name>.md
 ```
 
-Use the private knowledge base template:
+Use a private research-brief template if your knowledge base has one:
 
 ```text
-<private-knowledge-base>/private content/Research/claude-code-corpus/_templates/field_manual_research_brief.md
+<private-knowledge-base>/agentic-coding-research/_templates/research_brief.md
 ```
 
 Small reproducibility bundles may live under:
 
 ```text
-<private-knowledge-base>/private content/Research/claude-code-corpus/_data/YYYYMMDDHHMMSS_<slug>/
+<private-knowledge-base>/agentic-coding-research/_data/YYYYMMDDHHMMSS_<slug>/
 ```
 
-Allowed private knowledge base bundle files:
+Allowed private bundle files:
 
 - `manifest.json`
 - `queries.sql`
@@ -41,7 +42,7 @@ Allowed private knowledge base bundle files:
 - `x_thread.md`
 
 Do not put `.duckdb`, `.parquet`, raw `.jsonl`, heavy CSV extracts, labeled
-audit rows, secrets, or private prompt/tool-result text in private knowledge base bundles.
+audit rows, secrets, or private prompt/tool-result text in private bundles.
 
 ### This Repo: Public Method And Machinery
 
@@ -70,7 +71,7 @@ Use gitignored local folders for active analysis:
 ```
 
 Promote only cleaned summaries, query files, content drafts, and reproducibility
-metadata into private knowledge base.
+metadata into your private knowledge base.
 
 ## Corpus Layers
 
@@ -86,7 +87,7 @@ Keep these layers distinct:
   Use this for latency, event-stream, tool-dispatch, and app/runtime questions.
   Keep raw sensitive telemetry attributes suppressed by default.
 - **Unified Field Manual outputs:** public-safe claims, protocols, tools, and
-  social drafts promoted to private knowledge base after review.
+  social drafts promoted to a private knowledge base after review.
 
 ## Promotion Checklist
 
@@ -99,4 +100,4 @@ Before marking research complete:
 - The "so what" maps to a protocol or tool.
 - Public content drafts do not expose private project names, file paths, raw
   prompts, secrets, or client data.
-- Heavy data stays outside private knowledge base and outside git.
+- Heavy data stays outside the public repo and outside git.

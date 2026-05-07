@@ -1,6 +1,6 @@
 ---
 name: agentic-coding-field-manual
-description: Use when turning Claude Code or coding-agent corpus data into public Field Manual research, evidence-backed protocols, scripts, blog outlines, LinkedIn posts, X threads, or repo updates. Trigger when asked to update the corpus analysis, find non-obvious agentic-coding lessons, create the "so what", package findings into skills/tools, or coordinate with content pipeline and social publishing tool.
+description: Use when turning Claude Code or coding-agent corpus data into public Field Manual research, evidence-backed protocols, scripts, blog outlines, LinkedIn posts, X threads, or repo updates. Trigger when asked to update corpus analysis, find non-obvious agentic-coding lessons, create the "so what", or package findings into skills/tools/content handoffs.
 metadata:
   short-description: Turn agent logs into field-manual research and content
 ---
@@ -55,20 +55,21 @@ over causal overreach.
    - Add or update Codex skills when a protocol should be installed.
    - Create content briefs for blog, LinkedIn, and X only after the evidence and
      caveats are clear.
-   - Persist completed research to private knowledge base using the Field Manual research brief
-     template. Keep messy run logs in `.runs/` and public machinery in this repo.
+   - Persist completed research to a private knowledge base using a research
+     brief template. Keep messy run logs in `.runs/` and public machinery in
+     this repo.
 
 6. **Coordinate with companion repos when present**
-   - content pipeline: `<user-home>/dev/content-pipeline`
-   - X instrumentation: `<user-home>/dev/social-publishing-tool`
-   - Do not modify companion repos unless the user asks. Prepare handoff files
-     or exact commands when useful.
+   - Do not modify companion repos unless the user asks.
+   - Inspect the target repo's current layout before writing handoff files.
+   - Prefer public-safe source/fact handoffs over copying raw transcripts,
+     prompts, tool outputs, private paths, or project names.
 
 ## High-Value Analysis Families
 
 Use `references/analysis_playbook.md` for query ideas, metrics, and expected
 artifacts. Use `references/content_handoff.md` when turning a finding into blog,
-LinkedIn, X, or content pipeline inputs.
+LinkedIn, X, or content-pipeline inputs.
 
 ## Output Shape
 
