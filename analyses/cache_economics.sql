@@ -63,18 +63,87 @@ ORDER BY MIN(turns);
 
 -- 3. Cost-without-cache estimate
 -- How much would deep sessions cost without prompt caching?
--- Uses Opus pricing as of 2026: $15/MTok input, $1.50/MTok cache read.
+-- The constants below are Opus-class illustrative API prices: base input
+-- $15/MTok, 5-minute cache write $18.75/MTok, cache read $1.50/MTok.
+-- Update them if you are analyzing another model or pricing has changed.
+WITH pricing AS (
+    SELECT
+        15.0 AS base_input_usd_per_mtok,
+        18.75 AS cache_write_5m_usd_per_mtok,
+        1.50 AS cache_read_usd_per_mtok
+),
+bucketed AS (
+    SELECT
+        CASE
+            WHEN assistant_index_in_session < 50 THEN 'turns 1-49'
+            WHEN assistant_index_in_session < 200 THEN 'turns 50-199'
+            ELSE 'turns 200+'
+        END AS turn_position,
+        assistant_index_in_session,
+        input_tokens,
+        cache_read_input_tokens,
+        cache_creation_input_tokens
+    FROM assistant_turns
+    WHERE input_tokens IS NOT NULL
+)
 SELECT
-    CASE
-        WHEN assistant_index_in_session < 50 THEN 'turns 1-49'
-        WHEN assistant_index_in_session < 200 THEN 'turns 50-199'
-        ELSE 'turns 200+'
-    END AS turn_position,
+    turn_position,
     count(*) AS turns,
-    round(avg(input_tokens) * 15.0 / 1000000, 4) AS cost_per_turn_no_cache_usd,
-    round(avg(cache_read_input_tokens) * 1.50 / 1000000, 4) AS cost_per_turn_with_cache_usd,
-    round(((avg(input_tokens) + avg(cache_read_input_tokens)) * 15.0 / 1000000) - ((avg(input_tokens) * 15.0 + avg(cache_read_input_tokens) * 1.50) / 1000000), 4) AS cache_savings_per_turn_usd
-FROM assistant_turns
-WHERE input_tokens IS NOT NULL
-GROUP BY 1
+    round(
+        (
+            avg(input_tokens)
+          + avg(cache_read_input_tokens)
+          + avg(cache_creation_input_tokens)
+        ) * max(base_input_usd_per_mtok) / 1000000,
+        4
+    ) AS no_cache_input_cost_per_turn_usd,
+    round(
+        (
+            avg(input_tokens) * max(base_input_usd_per_mtok)
+          + avg(cache_creation_input_tokens) * max(cache_write_5m_usd_per_mtok)
+          + avg(cache_read_input_tokens) * max(cache_read_usd_per_mtok)
+        ) / 1000000,
+        4
+    ) AS cached_input_cost_per_turn_usd,
+    round(
+        (
+            (
+                avg(input_tokens)
+              + avg(cache_read_input_tokens)
+              + avg(cache_creation_input_tokens)
+            ) * max(base_input_usd_per_mtok)
+          - (
+                avg(input_tokens) * max(base_input_usd_per_mtok)
+              + avg(cache_creation_input_tokens) * max(cache_write_5m_usd_per_mtok)
+              + avg(cache_read_input_tokens) * max(cache_read_usd_per_mtok)
+            )
+        ) / 1000000,
+        4
+    ) AS cache_savings_per_turn_usd,
+    round(
+        100.0
+        * (
+            (
+                avg(input_tokens)
+              + avg(cache_read_input_tokens)
+              + avg(cache_creation_input_tokens)
+            ) * max(base_input_usd_per_mtok)
+          - (
+                avg(input_tokens) * max(base_input_usd_per_mtok)
+              + avg(cache_creation_input_tokens) * max(cache_write_5m_usd_per_mtok)
+              + avg(cache_read_input_tokens) * max(cache_read_usd_per_mtok)
+            )
+        )
+        / NULLIF(
+            (
+                avg(input_tokens)
+              + avg(cache_read_input_tokens)
+              + avg(cache_creation_input_tokens)
+            ) * max(base_input_usd_per_mtok),
+            0
+        ),
+        1
+    ) AS pct_input_cost_saved
+FROM bucketed, pricing
+GROUP BY turn_position
 ORDER BY MIN(assistant_index_in_session);

@@ -16,15 +16,23 @@
 
 
 -- 0. Corpus basis for every public claim.
+WITH explicit_errors_by_session AS (
+    SELECT
+        session_id,
+        sum(CASE WHEN coalesce(result_is_error, FALSE) THEN 1 ELSE 0 END) AS explicit_failures
+    FROM tool_events
+    GROUP BY session_id
+)
 SELECT
     count(*) AS sessions,
     sum(tool_events) AS tool_events,
-    sum(error_events) AS error_events,
+    sum(coalesce(explicit_failures, 0)) AS explicit_error_events,
     sum(human_messages) AS human_messages,
     sum(assistant_turns) AS assistant_turns,
     min(first_timestamp) AS first_timestamp,
     max(last_timestamp) AS last_timestamp
-FROM session_metrics;
+FROM session_metrics
+LEFT JOIN explicit_errors_by_session USING (session_id);
 
 
 -- 1. Autonomy half-life.
@@ -46,13 +54,7 @@ WITH spans AS (
             WHERE t.session_id = h.session_id
               AND t.row_index_in_session > prev.row_index_in_session
               AND t.row_index_in_session < h.row_index_in_session
-              AND (
-                  t.result_is_error
-                  OR t.result_keyword_error
-                  OR t.result_keyword_auth
-                  OR t.result_keyword_not_found
-                  OR t.result_keyword_timeout
-              )
+              AND coalesce(t.result_is_error, FALSE)
         ) AS errors_since_prior_human
     FROM human_messages h
     JOIN human_messages prev
@@ -103,21 +105,21 @@ FROM trans, totals
 UNION ALL
 SELECT
     'search_edit_shell_core' AS pattern,
-    sum(CASE WHEN tool_family IN ('file_search', 'file_edit', 'shell')
-              AND next_tool_family IN ('file_search', 'file_edit', 'shell')
+    sum(CASE WHEN tool_family IN ('file_search', 'file_edit', 'file_read', 'file_write', 'shell')
+              AND next_tool_family IN ('file_search', 'file_edit', 'file_read', 'file_write', 'shell')
              THEN transitions ELSE 0 END) AS transitions,
-    round(100.0 * sum(CASE WHEN tool_family IN ('file_search', 'file_edit', 'shell')
-                            AND next_tool_family IN ('file_search', 'file_edit', 'shell')
+    round(100.0 * sum(CASE WHEN tool_family IN ('file_search', 'file_edit', 'file_read', 'file_write', 'shell')
+                            AND next_tool_family IN ('file_search', 'file_edit', 'file_read', 'file_write', 'shell')
                            THEN transitions ELSE 0 END) / max(total_transitions), 1) AS pct
 FROM trans, totals
 UNION ALL
 SELECT
     'shell_edit_back_and_forth' AS pattern,
-    sum(CASE WHEN (tool_family = 'shell' AND next_tool_family = 'file_edit')
-               OR (tool_family = 'file_edit' AND next_tool_family = 'shell')
+    sum(CASE WHEN (tool_family = 'shell' AND next_tool_family IN ('file_edit', 'file_read', 'file_write'))
+               OR (tool_family IN ('file_edit', 'file_read', 'file_write') AND next_tool_family = 'shell')
              THEN transitions ELSE 0 END) AS transitions,
-    round(100.0 * sum(CASE WHEN (tool_family = 'shell' AND next_tool_family = 'file_edit')
-                              OR (tool_family = 'file_edit' AND next_tool_family = 'shell')
+    round(100.0 * sum(CASE WHEN (tool_family = 'shell' AND next_tool_family IN ('file_edit', 'file_read', 'file_write'))
+                              OR (tool_family IN ('file_edit', 'file_read', 'file_write') AND next_tool_family = 'shell')
                            THEN transitions ELSE 0 END) / max(total_transitions), 1) AS pct
 FROM trans, totals;
 
@@ -164,16 +166,23 @@ WITH token_by_session AS (
     FROM assistant_turns
     GROUP BY session_id
 ),
+explicit_errors_by_session AS (
+    SELECT
+        session_id,
+        sum(CASE WHEN coalesce(result_is_error, FALSE) THEN 1 ELSE 0 END) AS explicit_error_events
+    FROM tool_events
+    GROUP BY session_id
+),
 labeled AS (
     SELECT
         sm.session_id,
         CASE
-            WHEN sm.error_events = 0 THEN 'no_error_sessions'
-            WHEN sm.error_events BETWEEN 1 AND 2 THEN '1_2_errors'
-            WHEN sm.error_events BETWEEN 3 AND 9 THEN '3_9_errors'
+            WHEN coalesce(ee.explicit_error_events, 0) = 0 THEN 'no_error_sessions'
+            WHEN coalesce(ee.explicit_error_events, 0) BETWEEN 1 AND 2 THEN '1_2_errors'
+            WHEN coalesce(ee.explicit_error_events, 0) BETWEEN 3 AND 9 THEN '3_9_errors'
             ELSE '10plus_errors'
         END AS error_bucket,
-        sm.error_events,
+        coalesce(ee.explicit_error_events, 0) AS error_events,
         sm.tool_events,
         sm.human_messages,
         tb.total_tokens,
@@ -181,6 +190,7 @@ labeled AS (
         tb.output_tokens
     FROM session_metrics sm
     JOIN token_by_session tb USING (session_id)
+    LEFT JOIN explicit_errors_by_session ee USING (session_id)
 )
 SELECT
     error_bucket,
@@ -209,10 +219,21 @@ WITH token_by_session AS (
     FROM assistant_turns
     GROUP BY session_id
 ),
+explicit_errors_by_session AS (
+    SELECT
+        session_id,
+        sum(CASE WHEN coalesce(result_is_error, FALSE) THEN 1 ELSE 0 END) AS explicit_error_events
+    FROM tool_events
+    GROUP BY session_id
+),
 labeled AS (
-    SELECT sm.session_id, sm.error_events, tb.total_tokens
+    SELECT
+        sm.session_id,
+        coalesce(ee.explicit_error_events, 0) AS error_events,
+        tb.total_tokens
     FROM session_metrics sm
     JOIN token_by_session tb USING (session_id)
+    LEFT JOIN explicit_errors_by_session ee USING (session_id)
 )
 SELECT
     round(100.0 * sum(CASE WHEN error_events >= 10 THEN 1 ELSE 0 END) / count(*), 1) AS pct_sessions_10plus_errors,
@@ -229,23 +250,29 @@ WITH interventions AS (
         h.session_id,
         h.row_index_in_session AS human_row,
         h.prompt_chars,
+        prev.tool_event_id AS previous_tool_event_id,
         (
             SELECT min(t.event_index)
             FROM tool_events t
             WHERE t.session_id = h.session_id
               AND t.row_index_in_session > h.row_index_in_session
         ) AS next_event_index
-    FROM human_intervention_points h
-    WHERE h.previous_result_is_error
-       OR h.previous_result_keyword_error
-       OR h.previous_result_keyword_auth
+    FROM human_messages h
+    JOIN tool_events prev
+      ON prev.session_id = h.session_id
+     AND prev.event_index = (
+        SELECT max(t.event_index)
+        FROM tool_events t
+        WHERE t.session_id = h.session_id
+          AND t.row_index_in_session < h.row_index_in_session
+     )
+    WHERE coalesce(prev.result_is_error, FALSE)
 ),
 nexts AS (
     SELECT
         i.*,
         t.tool_family AS next_tool_family,
         t.result_is_error,
-        t.result_keyword_error,
         t.result_keyword_success,
         t.result_keyword_test
     FROM interventions i
@@ -258,7 +285,7 @@ SELECT
     count(*) AS interventions,
     round(100.0 * count(*) / sum(count(*)) OVER (), 1) AS pct,
     round(avg(prompt_chars), 0) AS avg_prompt_chars,
-    round(100.0 * sum(CASE WHEN result_is_error OR result_keyword_error THEN 1 ELSE 0 END) / count(*), 1) AS pct_next_tool_failed,
+    round(100.0 * sum(CASE WHEN coalesce(result_is_error, FALSE) THEN 1 ELSE 0 END) / count(*), 1) AS pct_next_tool_failed,
     round(100.0 * sum(CASE WHEN result_keyword_success OR result_keyword_test THEN 1 ELSE 0 END) / count(*), 1) AS pct_next_success_or_test
 FROM nexts
 GROUP BY next_tool_family
