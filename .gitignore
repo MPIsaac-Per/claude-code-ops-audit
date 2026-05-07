@@ -7,6 +7,11 @@ audit_sample*.csv
 audit_*_labeled.csv
 *.parquet
 
+# Local research runs and private outputs
+.runs/
+outputs/
+logs/
+
 # Python
 __pycache__/
 *.py[cod]

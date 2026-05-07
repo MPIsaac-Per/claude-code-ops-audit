@@ -23,11 +23,15 @@ this pipeline against them and reproduce the analyses on your own data.
 | `analyses/cache_economics.sql` | Cache-read leverage by session depth |
 | `analyses/session_endings.sql` | How sessions actually terminate |
 | `analyses/error_distribution.sql` | Which tools fail, how, and how often |
+| `analyses/field_manual_protocols.sql` | Field Manual query pack: autonomy half-life, agent loop map, verification-debt surface, stuckness cost, and rescue patterns |
 | `analyses/fpk_count.py` | fpk overall + by category and month (raw JSONL, no mart needed) |
 | `analyses/fpk_correlate.py` | fpk by Claude model and CC version (raw JSONL, no mart needed) |
 | `audit/RUBRIC.md` | Verification-debt classification rubric |
 | `audit/prompt_template.md` | The per-row LLM prompt used in the audit |
 | `audit/classify.py` | Parallel classifier using the Anthropic API |
+| `skills/agentic-coding-field-manual/` | Codex skill for turning corpus data into public Field Manual research, protocols, and content |
+| `skills/claude-code-supercharger/` | Codex skill with evidence-backed Claude Code operating protocols |
+| `docs/PERSISTENCE.md` | Storage boundary for local runs, public repo machinery, and completed private knowledge base research |
 | `docs/METHODOLOGY.md` | Full walkthrough |
 
 ## What's NOT in here
@@ -152,6 +156,25 @@ The `analyses/` queries surface:
   a human-AI loop. See `analyses/fpk_count.py` and `analyses/fpk_correlate.py`.
 
 Your numbers will differ. That's the point — run it on your own logs.
+
+## Field Manual skills
+
+This repo also includes two installable Codex skills that turn the audit into a
+public operating system for agentic coding:
+
+- `skills/agentic-coding-field-manual/` mines the freshest available corpus
+  data, creates non-obvious analyses, extracts the "so what", and packages the
+  result into tools, skills, blog briefs, LinkedIn posts, and X threads.
+- `skills/claude-code-supercharger/` applies the current operating protocols
+  while coding: micro-sprints, loop shaping, verification receipts,
+  diagnosis-before-retry, stuckness interrupts, and human rescue.
+
+The key thesis is that elite agentic coding is not just better prompting. It is
+management of the agent's execution loop.
+
+Completed Field Manual research should be promoted to private knowledge base, while this repo
+keeps reusable public machinery and `.runs/` stays local. See
+`docs/PERSISTENCE.md`.
 
 ## Caveats baked into the methodology
 
