@@ -72,6 +72,22 @@ Use gitignored local folders for active analysis:
 Promote only cleaned summaries, query files, content drafts, and reproducibility
 metadata into private knowledge base.
 
+## Corpus Layers
+
+Keep these layers distinct:
+
+- **Archive catalog:** every cloud/blob snapshot, used for provenance and
+  coverage. It is not the default denominator for behavioral claims because
+  rolling snapshots repeat the same session over time.
+- **Latest-session mart:** the canonical conversation/transcript analysis layer.
+  Use this for behavioral claims, tool-call rates, verification debt, session
+  endings, rescue loops, and content findings.
+- **Telemetry overlay mart:** OTLP/log/span data from Codex or related clients.
+  Use this for latency, event-stream, tool-dispatch, and app/runtime questions.
+  Keep raw sensitive telemetry attributes suppressed by default.
+- **Unified Field Manual outputs:** public-safe claims, protocols, tools, and
+  social drafts promoted to private knowledge base after review.
+
 ## Promotion Checklist
 
 Before marking research complete:

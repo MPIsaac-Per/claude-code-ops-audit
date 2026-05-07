@@ -24,6 +24,8 @@ this pipeline against them and reproduce the analyses on your own data.
 | `analyses/session_endings.sql` | How sessions actually terminate |
 | `analyses/error_distribution.sql` | Which tools fail, how, and how often |
 | `analyses/field_manual_protocols.sql` | Field Manual query pack: autonomy half-life, agent loop map, verification-debt surface, stuckness cost, and rescue patterns |
+| `analyses/build_conversation_archive_catalog.py` | Catalog every rolling conversation blob while marking the canonical latest snapshot per session |
+| `analyses/build_telemetry_mart.py` | Build a sanitized OTLP telemetry mart with sensitive values suppressed and hashed |
 | `analyses/fpk_count.py` | fpk overall + by category and month (raw JSONL, no mart needed) |
 | `analyses/fpk_correlate.py` | fpk by Claude model and CC version (raw JSONL, no mart needed) |
 | `audit/RUBRIC.md` | Verification-debt classification rubric |
@@ -84,6 +86,31 @@ The fpk analyses operate on raw JSONL directly (no mart required):
 ```bash
 python3 analyses/fpk_count.py        # defaults to ~/.claude/projects/
 python3 analyses/fpk_correlate.py    # add --corpus PATH for non-default location
+```
+
+### 2b. Catalog rolling snapshots and telemetry overlays
+
+If your logs are stored as rolling cloud snapshots, do not analyze every blob as
+if each one were a distinct session. First catalog the full archive, then point
+your behavioral analyses at the latest snapshot per session.
+
+```bash
+python3 analyses/build_conversation_archive_catalog.py \
+  --index blob_index_live_conversations.json \
+  --latest-index blob_index_live_latest_by_session.json \
+  --downloads downloads_latest \
+  --out .runs/conversation_archive_catalog
+```
+
+For Codex/OpenTelemetry exports, build a separate overlay mart. Raw sensitive
+attributes such as user emails, account IDs, cwd values, tool arguments, and
+tool outputs are not stored as text in this mart.
+
+```bash
+python3 analyses/build_telemetry_mart.py \
+  --telemetry-root downloads_telemetry \
+  --inventory blob_index_live.json \
+  --out .runs/telemetry_mart
 ```
 
 ### 3. Run the verification-debt audit (optional)
