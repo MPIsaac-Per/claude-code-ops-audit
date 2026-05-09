@@ -29,6 +29,7 @@ this pipeline against them and reproduce the analyses on your own data.
 | `analyses/build_telemetry_mart.py` | Build a sanitized OTLP telemetry mart with sensitive values suppressed and hashed |
 | `analyses/fpk_count.py` | fpk overall + by category and month (raw JSONL, no mart needed) |
 | `analyses/fpk_correlate.py` | fpk by Claude model and CC version (raw JSONL, no mart needed) |
+| `analyses/fpk_tui.py` | interactive fpk "rageboard" TUI inspired by devrage (raw JSONL, no mart needed) |
 | `audit/RUBRIC.md` | Verification-debt classification rubric |
 | `audit/prompt_template.md` | The per-row LLM prompt used in the audit |
 | `audit/classify.py` | Parallel classifier using the Anthropic API |
@@ -87,6 +88,7 @@ The fpk analyses operate on raw JSONL directly (no mart required):
 ```bash
 python3 analyses/fpk_count.py        # defaults to ~/.claude/projects/
 python3 analyses/fpk_correlate.py    # add --corpus PATH for non-default location
+python3 analyses/fpk_tui.py          # interactive rageboard dashboard
 ```
 
 ### 2b. Catalog rolling snapshots and telemetry overlays
@@ -123,6 +125,51 @@ duckdb .runs/telemetry_mart/telemetry_mart.duckdb < analyses/codex_telemetry_fil
 The raw telemetry export can contain many stream receive-loop spans and response
 delta logs inside a small number of conversations. Treat raw span/log counts as
 coverage, not as conversation volume.
+
+### 2c. Use the fpk tools
+
+The fpk tools scan human prompts in raw Claude Code JSONL logs. They do not
+need the DuckDB mart, and by default they use the ubiquitous Claude Code log
+root:
+
+```bash
+~/.claude/projects
+```
+
+Run a quick terminal report:
+
+```bash
+python3 analyses/fpk_count.py
+python3 analyses/fpk_correlate.py
+```
+
+Open the interactive rageboard:
+
+```bash
+python3 analyses/fpk_tui.py
+```
+
+The TUI has no third-party dependencies; it uses Python's built-in `curses`.
+Use `tab` or `1`-`7` to switch panels, arrow keys to scroll, `r` to rescan,
+and `q` to quit. For a static/non-interactive report:
+
+```bash
+python3 analyses/fpk_tui.py --print
+```
+
+For non-standard exports, all three scripts accept `--corpus`; the TUI also
+accepts `FPK_CORPUS`:
+
+```bash
+python3 analyses/fpk_tui.py --corpus /non/standard/jsonl/export
+FPK_CORPUS=/non/standard/jsonl/export python3 analyses/fpk_tui.py --print
+```
+
+`fpk_count.py` reports overall counts, category counts, monthly counts, and a
+few sample contexts. `fpk_correlate.py` normalizes the rate as f-bombs per
+1,000 human prompts by Claude model and Claude Code version. `fpk_tui.py`
+combines those surfaces into overview, category, model, version, month,
+session, and sample-context panels.
 
 ### 3. Run the verification-debt audit (optional)
 
@@ -184,7 +231,8 @@ The `analyses/` queries surface:
   prompt text for profanity markers and correlates the rate with model and CLI
   version metadata. Treat it as a deliberately informal proxy for visible
   frustration in a human-AI loop, not as a benchmark. See
-  `analyses/fpk_count.py` and `analyses/fpk_correlate.py`.
+  `analyses/fpk_count.py`, `analyses/fpk_correlate.py`, and the interactive
+  `analyses/fpk_tui.py` dashboard.
 
 Your numbers will differ. That's the point — run it on your own logs.
 
