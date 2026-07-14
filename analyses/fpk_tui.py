@@ -28,7 +28,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
 
-
 WRAPPER_TAGS = [
     "system-reminder",
     "command-name",
@@ -126,7 +125,9 @@ class ScanResult:
 
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Open a TUI for fpk analysis over Claude Code JSONL logs")
+    parser = argparse.ArgumentParser(
+        description="Open a TUI for fpk analysis over Claude Code JSONL logs"
+    )
     parser.add_argument(
         "--corpus",
         help="Directory containing JSONL files, recursively. Defaults to the standard Claude Code log root.",
@@ -224,7 +225,9 @@ def is_human_user(row: dict[str, Any]) -> bool:
         return True
     if not isinstance(content, list):
         return False
-    if content and all(isinstance(block, dict) and block.get("type") == "tool_result" for block in content):
+    if content and all(
+        isinstance(block, dict) and block.get("type") == "tool_result" for block in content
+    ):
         return False
     return True
 
@@ -284,7 +287,9 @@ def count_categories(text: str) -> Counter[str]:
     return counts
 
 
-def add_sample(samples: dict[str, list[str]], label: str, pattern: re.Pattern[str], text: str) -> None:
+def add_sample(
+    samples: dict[str, list[str]], label: str, pattern: re.Pattern[str], text: str
+) -> None:
     if len(samples[label]) >= 5:
         return
     match = pattern.search(text)
@@ -466,11 +471,15 @@ def print_report(result: ScanResult, min_prompts: int) -> None:
     print("")
     print("by model")
     for model, bucket in sorted_buckets(result.by_model, min_prompts=min_prompts, limit=12):
-        print(f"  {model:36s} {bucket.fbombs:7,} / {bucket.prompts:8,} prompts  {bucket.fpk:8.2f} fpk")
+        print(
+            f"  {model:36s} {bucket.fbombs:7,} / {bucket.prompts:8,} prompts  {bucket.fpk:8.2f} fpk"
+        )
     print("")
     print("by version bucket")
     for version, bucket in sorted_buckets(result.by_version_bucket, min_prompts=0):
-        print(f"  {version:24s} {bucket.fbombs:7,} / {bucket.prompts:8,} prompts  {bucket.fpk:8.2f} fpk")
+        print(
+            f"  {version:24s} {bucket.fbombs:7,} / {bucket.prompts:8,} prompts  {bucket.fpk:8.2f} fpk"
+        )
     if result.errors:
         print("")
         print(f"errors skipped: {len(result.errors):,}")
@@ -628,7 +637,9 @@ def draw_tabs(screen: curses.window, state: TuiState, y: int) -> int:
     return y + 2
 
 
-def draw_metric(screen: curses.window, y: int, x: int, w: int, label: str, value: str, attr: int = 0) -> None:
+def draw_metric(
+    screen: curses.window, y: int, x: int, w: int, label: str, value: str, attr: int = 0
+) -> None:
     draw_box(screen, y, x, 5, w, label)
     safe_add(screen, y + 2, x + 2, value, attr | curses.A_BOLD)
 
@@ -656,7 +667,12 @@ def draw_overview(screen: curses.window, result: ScanResult, y: int) -> None:
     row += 2
     top_models = sorted_buckets(result.by_model, min_prompts=10, limit=5)
     for name, bucket in top_models:
-        safe_add(screen, row, 4, f"{name[:34]:34s} {bucket.fpk:7.2f} fpk  ({bucket.fbombs:,}/{bucket.prompts:,})")
+        safe_add(
+            screen,
+            row,
+            4,
+            f"{name[:34]:34s} {bucket.fpk:7.2f} fpk  ({bucket.fbombs:,}/{bucket.prompts:,})",
+        )
         row += 1
 
     row += 1
@@ -675,9 +691,14 @@ def draw_overview(screen: curses.window, result: ScanResult, y: int) -> None:
         safe_add(screen, row + 1, 2, f"skipped {len(result.errors):,} unreadable files", color(3))
 
 
-def table_rows_for(result: ScanResult, tab: str, min_prompts: int) -> tuple[list[str], list[list[str]]]:
+def table_rows_for(
+    result: ScanResult, tab: str, min_prompts: int
+) -> tuple[list[str], list[list[str]]]:
     if tab == "categories":
-        rows = [[label, f"{count:,}", f"{count / max(result.total_fbombs, 1) * 100:5.1f}%"] for label, count in result.by_category.most_common()]
+        rows = [
+            [label, f"{count:,}", f"{count / max(result.total_fbombs, 1) * 100:5.1f}%"]
+            for label, count in result.by_category.most_common()
+        ]
         return ["category", "f-bombs", "share"], rows
     if tab == "models":
         rows = [

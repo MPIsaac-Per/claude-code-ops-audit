@@ -21,6 +21,7 @@ Defaults to ~/.claude/projects/ (the standard Claude Code log location).
 
 Pair with analyses/fpk_count.py for category and monthly breakdowns.
 """
+
 import argparse
 import json
 import os
@@ -29,14 +30,25 @@ import sys
 from collections import Counter, defaultdict
 from pathlib import Path
 
-
 WRAPPER_TAGS = [
-    "system-reminder", "command-name", "command-args", "command-message",
-    "command-output", "local-command-stdout", "local-command-stderr",
-    "user-prompt-submit-hook", "bash-input", "bash-stdout", "bash-stderr",
-    "command-stderr", "command-stdout", "command-content",
+    "system-reminder",
+    "command-name",
+    "command-args",
+    "command-message",
+    "command-output",
+    "local-command-stdout",
+    "local-command-stderr",
+    "user-prompt-submit-hook",
+    "bash-input",
+    "bash-stdout",
+    "bash-stderr",
+    "command-stderr",
+    "command-stdout",
+    "command-content",
 ]
-WRAPPER_BLOCK = re.compile(r"<(" + "|".join(WRAPPER_TAGS) + r")>.*?</\1>", re.DOTALL | re.IGNORECASE)
+WRAPPER_BLOCK = re.compile(
+    r"<(" + "|".join(WRAPPER_TAGS) + r")>.*?</\1>", re.DOTALL | re.IGNORECASE
+)
 WRAPPER_LOOSE = re.compile(r"<(?:" + "|".join(WRAPPER_TAGS) + r")[^>]*/?>", re.IGNORECASE)
 
 PATTERNS = [
@@ -144,7 +156,10 @@ def main():
     print(f"Scanning {len(files):,} files ...", file=sys.stderr)
     for i, fp in enumerate(files):
         if i and i % 500 == 0:
-            print(f"  {i:,}/{len(files):,}  fbombs so far: {sum(fbombs_by_model.values()):,}", file=sys.stderr)
+            print(
+                f"  {i:,}/{len(files):,}  fbombs so far: {sum(fbombs_by_model.values()):,}",
+                file=sys.stderr,
+            )
         try:
             with fp.open("r", encoding="utf-8", errors="replace") as f:
                 lines = f.readlines()
@@ -168,8 +183,16 @@ def main():
             by_session[sid].append(r)
 
         for sid, srows in by_session.items():
-            assistant_models = [(idx, normalize_model(r.get("message", {}).get("model")) if isinstance(r.get("message"), dict) else "unknown")
-                                for idx, r in enumerate(srows) if r.get("type") == "assistant"]
+            assistant_models = [
+                (
+                    idx,
+                    normalize_model(r.get("message", {}).get("model"))
+                    if isinstance(r.get("message"), dict)
+                    else "unknown",
+                )
+                for idx, r in enumerate(srows)
+                if r.get("type") == "assistant"
+            ]
             for idx, r in enumerate(srows):
                 if r.get("type") != "user":
                     continue
@@ -212,14 +235,32 @@ def main():
             rate = (n_fb / n_pr * 1000) if n_pr else 0
             print(f"  {k:36s}  {n_fb:>7,}  {n_pr:>8,}  {rate:>10.2f}")
 
-    print_table("F-bombs by model (next assistant in session)", fbombs_by_model, prompts_by_model, "model")
-    print_table("F-bombs by Claude Code version bucket", fbombs_by_version_bucket, prompts_by_version_bucket, "version bucket", min_prompts=0)
-    print_table("F-bombs by exact CC version (top by fbombs)", fbombs_by_version, prompts_by_version, "version", min_prompts=200)
+    print_table(
+        "F-bombs by model (next assistant in session)", fbombs_by_model, prompts_by_model, "model"
+    )
+    print_table(
+        "F-bombs by Claude Code version bucket",
+        fbombs_by_version_bucket,
+        prompts_by_version_bucket,
+        "version bucket",
+        min_prompts=0,
+    )
+    print_table(
+        "F-bombs by exact CC version (top by fbombs)",
+        fbombs_by_version,
+        prompts_by_version,
+        "version",
+        min_prompts=200,
+    )
 
-    print(f"\n=== Totals ===")
+    print("\n=== Totals ===")
     print(f"  Total f-bombs: {sum(fbombs_by_model.values()):,}")
     print(f"  Total human prompts: {sum(prompts_by_model.values()):,}")
-    overall_rate = sum(fbombs_by_model.values()) / sum(prompts_by_model.values()) * 1000 if prompts_by_model else 0
+    overall_rate = (
+        sum(fbombs_by_model.values()) / sum(prompts_by_model.values()) * 1000
+        if prompts_by_model
+        else 0
+    )
     print(f"  Overall rate: {overall_rate:.2f} f-bombs per 1,000 prompts")
 
 

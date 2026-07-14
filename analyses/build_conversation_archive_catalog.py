@@ -20,7 +20,6 @@ from collections import defaultdict
 from datetime import datetime
 from typing import Any
 
-
 CATALOG_COLUMNS = [
     ("blob_id", "UBIGINT"),
     ("source_blob", "VARCHAR"),
@@ -120,7 +119,11 @@ def path_session(name: str) -> str:
 
 def session_id(blob: dict[str, Any]) -> str:
     metadata = blob.get("metadata") or {}
-    return str(metadata.get("sessionId") or metadata.get("session_id") or path_session(blob.get("name", "")))
+    return str(
+        metadata.get("sessionId")
+        or metadata.get("session_id")
+        or path_session(blob.get("name", ""))
+    )
 
 
 def bool_csv(value: bool) -> str:
@@ -136,9 +139,13 @@ def maybe_local(download_root: pathlib.Path | None, name: str) -> tuple[str, boo
     return str(local_path), True, str(local_path.stat().st_size)
 
 
-def write_csv(path: pathlib.Path, columns: list[tuple[str, str]], rows: list[dict[str, Any]]) -> None:
+def write_csv(
+    path: pathlib.Path, columns: list[tuple[str, str]], rows: list[dict[str, Any]]
+) -> None:
     with path.open("w", newline="", encoding="utf-8") as handle:
-        writer = csv.DictWriter(handle, fieldnames=[name for name, _ in columns], extrasaction="ignore")
+        writer = csv.DictWriter(
+            handle, fieldnames=[name for name, _ in columns], extrasaction="ignore"
+        )
         writer.writeheader()
         writer.writerows(rows)
 
@@ -147,9 +154,19 @@ def build_database(db_path: pathlib.Path, csv_dir: pathlib.Path) -> None:
     sql_path = db_path.parent / "build_database.sql"
     sql = "\n".join(
         [
-            table_sql("conversation_blob_catalog", CATALOG_COLUMNS, csv_dir / "conversation_blob_catalog.csv"),
-            table_sql("conversation_session_snapshots", SESSION_COLUMNS, csv_dir / "conversation_session_snapshots.csv"),
-            table_sql("conversation_day_summary", DAY_COLUMNS, csv_dir / "conversation_day_summary.csv"),
+            table_sql(
+                "conversation_blob_catalog",
+                CATALOG_COLUMNS,
+                csv_dir / "conversation_blob_catalog.csv",
+            ),
+            table_sql(
+                "conversation_session_snapshots",
+                SESSION_COLUMNS,
+                csv_dir / "conversation_session_snapshots.csv",
+            ),
+            table_sql(
+                "conversation_day_summary", DAY_COLUMNS, csv_dir / "conversation_day_summary.csv"
+            ),
             """
 CREATE OR REPLACE VIEW latest_conversation_blobs AS
 SELECT *
@@ -184,12 +201,18 @@ FROM conversation_blob_catalog;
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--index", required=True, type=pathlib.Path, help="Full conversation blob inventory JSON")
-    parser.add_argument("--latest-index", type=pathlib.Path, help="Latest-by-session inventory JSON")
+    parser.add_argument(
+        "--index", required=True, type=pathlib.Path, help="Full conversation blob inventory JSON"
+    )
+    parser.add_argument(
+        "--latest-index", type=pathlib.Path, help="Latest-by-session inventory JSON"
+    )
     parser.add_argument("--downloads", type=pathlib.Path, help="Optional local download root")
     parser.add_argument("--out", required=True, type=pathlib.Path, help="Output directory")
     parser.add_argument("--db", type=pathlib.Path, help="DuckDB output path")
-    parser.add_argument("--account", default="", help="Optional Azure storage account for source_uri")
+    parser.add_argument(
+        "--account", default="", help="Optional Azure storage account for source_uri"
+    )
     parser.add_argument("--container", default="", help="Optional Azure container for source_uri")
     args = parser.parse_args()
 
@@ -217,7 +240,10 @@ def main() -> int:
     mismatched_latest = 0
 
     for sid, snapshots in sorted(grouped.items()):
-        snapshots.sort(key=lambda b: (iso(b.get("lastModified")), int(b.get("bytes") or 0), b.get("name", "")), reverse=True)
+        snapshots.sort(
+            key=lambda b: (iso(b.get("lastModified")), int(b.get("bytes") or 0), b.get("name", "")),
+            reverse=True,
+        )
         snapshot_count = len(snapshots)
         latest = snapshots[0]
         latest_name = str(latest.get("name") or "")
@@ -266,7 +292,9 @@ def main() -> int:
                 "snapshot_rank_desc": rank,
                 "snapshot_count_for_session": snapshot_count,
                 "is_latest_by_rank": bool_csv(rank == 1),
-                "is_latest_index_member": bool_csv(name in latest_names if latest_names else rank == 1),
+                "is_latest_index_member": bool_csv(
+                    name in latest_names if latest_names else rank == 1
+                ),
                 "metadata_host_hash": sha256_text(str(metadata.get("host") or "")),
                 "metadata_original_path_hash": sha256_text(str(metadata.get("originalPath") or "")),
                 "downloaded": bool_csv(downloaded),
@@ -304,16 +332,32 @@ def main() -> int:
         "db_path": str(db_path),
         "blobs": len(catalog_rows),
         "sessions": len(session_rows),
-        "supplied_latest_blobs": sum(1 for row in catalog_rows if row["is_latest_index_member"] == "true"),
+        "supplied_latest_blobs": sum(
+            1 for row in catalog_rows if row["is_latest_index_member"] == "true"
+        ),
         "rank_latest_blobs": sum(1 for row in catalog_rows if row["is_latest_by_rank"] == "true"),
-        "nonlatest_snapshots": sum(1 for row in catalog_rows if row["is_latest_by_rank"] == "false"),
+        "nonlatest_snapshots": sum(
+            1 for row in catalog_rows if row["is_latest_by_rank"] == "false"
+        ),
         "indexed_bytes": sum(int(row["indexed_bytes"] or 0) for row in catalog_rows),
-        "rank_latest_bytes": sum(int(row["indexed_bytes"] or 0) for row in catalog_rows if row["is_latest_by_rank"] == "true"),
-        "nonlatest_snapshot_bytes": sum(int(row["indexed_bytes"] or 0) for row in catalog_rows if row["is_latest_by_rank"] == "false"),
+        "rank_latest_bytes": sum(
+            int(row["indexed_bytes"] or 0)
+            for row in catalog_rows
+            if row["is_latest_by_rank"] == "true"
+        ),
+        "nonlatest_snapshot_bytes": sum(
+            int(row["indexed_bytes"] or 0)
+            for row in catalog_rows
+            if row["is_latest_by_rank"] == "false"
+        ),
         "path_day_start": min(row["path_day"] for row in catalog_rows if row["path_day"]),
         "path_day_end": max(row["path_day"] for row in catalog_rows if row["path_day"]),
-        "blob_modified_start": min(row["last_modified"] for row in catalog_rows if row["last_modified"]),
-        "blob_modified_end": max(row["last_modified"] for row in catalog_rows if row["last_modified"]),
+        "blob_modified_start": min(
+            row["last_modified"] for row in catalog_rows if row["last_modified"]
+        ),
+        "blob_modified_end": max(
+            row["last_modified"] for row in catalog_rows if row["last_modified"]
+        ),
         "sessions_where_rank_latest_not_in_supplied_index": mismatched_latest,
     }
     (out_dir / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")

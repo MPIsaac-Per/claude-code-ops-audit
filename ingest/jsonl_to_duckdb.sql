@@ -16,7 +16,7 @@
 --   5. Run the views:
 --        .read schema/02_views.sql
 --
--- This pipeline populates the FOUR base tables that can be derived purely
+-- This pipeline populates the six base tables that can be derived purely
 -- from the JSONL: jsonl_rows, content_blocks, human_messages, assistant_turns,
 -- tool_events, and session_metrics.
 --
@@ -40,6 +40,32 @@
 -- pipeline (audit/) corrects for false positives via LLM-assisted review.
 
 
+-- Read the corpus once and assign scan-order indexes once. Re-reading the
+-- glob for each table can produce inconsistent row indexes when timestamps
+-- collide. The session ordering assumes the input contains one canonical
+-- snapshot per session; see docs/METHODOLOGY.md for rolling archives.
+CREATE OR REPLACE TEMP TABLE _raw_jsonl AS
+WITH scanned AS (
+    SELECT
+        *,
+        row_number() OVER () AS _scan_index
+    FROM read_json(
+        getvariable('jsonl_glob'),
+        format='newline_delimited',
+        filename=true,
+        union_by_name=true,
+        ignore_errors=true
+    )
+)
+SELECT
+    *,
+    row_number() OVER (
+        PARTITION BY filename
+        ORDER BY _scan_index
+    ) - 1 AS _rownum_in_file
+FROM scanned;
+
+
 -- ----------------------------------------------------------------------------
 -- 1. jsonl_rows: load all JSONL lines into structured rows
 -- ----------------------------------------------------------------------------
@@ -54,7 +80,10 @@ SELECT
     sessionId AS session_id,
     regexp_extract(filename, '/([0-9a-f-]{36})\.jsonl$', 1) AS path_session_id,
     _rownum_in_file::UINTEGER AS row_index_in_file,
-    row_number() OVER (PARTITION BY sessionId ORDER BY _rownum_in_file)::UINTEGER - 1 AS row_index_in_session,
+    row_number() OVER (
+        PARTITION BY sessionId
+        ORDER BY filename, _rownum_in_file
+    )::UINTEGER - 1 AS row_index_in_session,
     type AS row_type,
     timestamp::TIMESTAMP WITH TIME ZONE AS "timestamp",
     cwd,
@@ -81,23 +110,21 @@ SELECT
     coalesce(length(message.content::VARCHAR), 0)::UBIGINT AS message_chars,
     md5(coalesce(message.content::VARCHAR, '')) AS message_hash,
     substr(coalesce(message.content::VARCHAR, ''), 1, 500) AS message_preview
-FROM (
-    SELECT
-        *,
-        filename,
-        row_number() OVER (PARTITION BY filename) - 1 AS _rownum_in_file
-    FROM read_json(getvariable('jsonl_glob'), format='newline_delimited', filename=true, union_by_name=true, ignore_errors=true)
-);
+FROM _raw_jsonl;
 
 
 -- ----------------------------------------------------------------------------
 -- 2. content_blocks: explode message.content arrays into individual blocks
 -- ----------------------------------------------------------------------------
--- This requires the original JSONL again to access the nested content arrays.
 INSERT INTO content_blocks BY NAME
 WITH src AS (
-    SELECT *
-    FROM read_json(getvariable('jsonl_glob'), format='newline_delimited', filename=true, union_by_name=true, ignore_errors=true)
+    SELECT
+        *,
+        row_number() OVER (
+            PARTITION BY sessionId
+            ORDER BY filename, _rownum_in_file
+        ) - 1 AS _row_index_in_session
+    FROM _raw_jsonl
 ),
 exploded AS (
     SELECT
@@ -107,66 +134,90 @@ exploded AS (
         s.type AS row_type,
         unnest(s.message.content) AS block,
         generate_subscripts(s.message.content, 1) - 1 AS block_index,
-        row_number() OVER (PARTITION BY s.sessionId ORDER BY s.timestamp) - 1 AS row_index_in_session
+        s._row_index_in_session AS row_index_in_session
     FROM src s
     WHERE s.type IN ('user', 'assistant')
       AND s.message.content IS NOT NULL
+),
+normalized AS (
+    SELECT
+        e.*,
+        json_extract_string(e.block::JSON, '$.type') AS block_type,
+        coalesce(
+            json_extract_string(e.block::JSON, '$.id'),
+            json_extract_string(e.block::JSON, '$.tool_use_id')
+        ) AS tool_use_id,
+        json_extract_string(e.block::JSON, '$.name') AS tool_name,
+        json_extract_string(e.block::JSON, '$.input.command') AS command_text,
+        json_extract_string(e.block::JSON, '$.input.file_path') AS input_file_path,
+        json_extract_string(e.block::JSON, '$.input.url') AS input_url,
+        coalesce(
+            json_extract_string(e.block::JSON, '$.text'),
+            json_extract_string(e.block::JSON, '$.content'),
+            ''
+        ) AS block_text,
+        coalesce(json_extract_string(e.block::JSON, '$.content'), '') AS block_content,
+        try_cast(json_extract(e.block::JSON, '$.is_error') AS BOOLEAN) AS is_error
+    FROM exploded e
 )
 SELECT
-    md5(session_id || '|' || row_index_in_session || '|' || block_index) AS block_id,
-    NULL::UBIGINT AS row_id,
-    NULL::UBIGINT AS file_id,
-    session_id,
-    row_index_in_session::UINTEGER,
-    block_index::UINTEGER,
-    row_type,
-    block.type AS block_type,
-    ts AS "timestamp",
-    cwd,
-    regexp_extract(cwd, '([^/]+)$', 1) AS project,
-    NULL AS environment,
-    block.id AS tool_use_id,
-    block.name AS tool_name,
+    md5(n.session_id || '|' || n.row_index_in_session || '|' || n.block_index) AS block_id,
+    j.row_id,
+    j.file_id,
+    n.session_id,
+    n.row_index_in_session::UINTEGER AS row_index_in_session,
+    n.block_index::UINTEGER AS block_index,
+    n.row_type,
+    n.block_type,
+    n.ts AS "timestamp",
+    n.cwd,
+    regexp_extract(n.cwd, '([^/]+)$', 1) AS project,
+    j.environment,
+    n.tool_use_id,
+    n.tool_name,
     -- Coarse tool family bucketing — adjust to taste
     CASE
-        WHEN block.name = 'Bash' THEN 'shell'
-        WHEN block.name IN ('Read', 'NotebookRead') THEN 'file_read'
-        WHEN block.name IN ('Edit', 'Write', 'NotebookEdit') THEN 'file_write'
-        WHEN block.name IN ('Grep', 'Glob') THEN 'file_search'
-        WHEN block.name IN ('TodoWrite', 'Task', 'TaskCreate', 'TaskUpdate') THEN 'planning'
-        WHEN block.name IN ('Agent', 'TaskOutput') THEN 'delegation'
-        WHEN block.name IN ('WebFetch', 'WebSearch') THEN 'web'
-        WHEN starts_with(block.name, 'mcp__') THEN 'mcp'
+        WHEN n.tool_name = 'Bash' THEN 'shell'
+        WHEN n.tool_name IN ('Read', 'NotebookRead') THEN 'file_read'
+        WHEN n.tool_name IN ('Edit', 'Write', 'NotebookEdit') THEN 'file_write'
+        WHEN n.tool_name IN ('Grep', 'Glob') THEN 'file_search'
+        WHEN n.tool_name IN ('TodoWrite', 'Task', 'TaskCreate', 'TaskUpdate') THEN 'planning'
+        WHEN n.tool_name IN ('Agent', 'TaskOutput') THEN 'delegation'
+        WHEN n.tool_name IN ('WebFetch', 'WebSearch') THEN 'web'
+        WHEN starts_with(n.tool_name, 'mcp__') THEN 'mcp'
         ELSE 'other'
     END AS tool_family,
     NULL AS input_keys,
     -- Bash-specific extracted fields
-    regexp_extract(coalesce(block.input.command, ''), '^(\S+)') AS command_verb,
-    coalesce(length(block.input.command), 0)::UINTEGER AS command_chars,
-    coalesce(len(string_split(block.input.command, '\n')), 1)::UINTEGER AS command_lines,
-    contains(coalesce(block.input.command, ''), '|') AS command_has_pipe,
-    contains(coalesce(block.input.command, ''), '>') AS command_has_redirect,
-    contains(coalesce(block.input.command, ''), '$(') AS command_has_subshell,
-    substr(coalesce(block.input.command, ''), 1, 500) AS command_preview,
-    md5(coalesce(block.input.command, '')) AS command_hash,
-    block.input.file_path AS file_path,
-    regexp_extract(block.input.file_path, '\.([^.]+)$', 1) AS file_extension,
-    regexp_extract(coalesce(block.input.url, ''), 'https?://([^/]+)', 1) AS url_domain,
+    regexp_extract(coalesce(n.command_text, ''), '^(\S+)') AS command_verb,
+    coalesce(length(n.command_text), 0)::UINTEGER AS command_chars,
+    coalesce(len(string_split(n.command_text, '\n')), 1)::UINTEGER AS command_lines,
+    contains(coalesce(n.command_text, ''), '|') AS command_has_pipe,
+    contains(coalesce(n.command_text, ''), '>') AS command_has_redirect,
+    contains(coalesce(n.command_text, ''), '$(') AS command_has_subshell,
+    substr(coalesce(n.command_text, ''), 1, 500) AS command_preview,
+    md5(coalesce(n.command_text, '')) AS command_hash,
+    n.input_file_path AS file_path,
+    regexp_extract(n.input_file_path, '\.([^.]+)$', 1) AS file_extension,
+    regexp_extract(coalesce(n.input_url, ''), 'https?://([^/]+)', 1) AS url_domain,
     -- tool_result fields
-    block.is_error AS result_is_error,
+    n.is_error AS result_is_error,
     NULL AS result_exit_code,
-    coalesce(length(block.content::VARCHAR), 0)::UBIGINT AS result_chars,
-    md5(coalesce(block.content::VARCHAR, '')) AS result_hash,
-    substr(coalesce(block.content::VARCHAR, ''), 1, 500) AS result_preview,
+    length(n.block_text)::UBIGINT AS result_chars,
+    md5(n.block_text) AS result_hash,
+    substr(n.block_text, 1, 500) AS result_preview,
     -- Keyword flags (regex-based; tune to your corpus)
-    regexp_matches(lower(coalesce(block.content::VARCHAR, '')), '(error|exception|traceback|failed)') AS keyword_error,
-    regexp_matches(lower(coalesce(block.content::VARCHAR, '')), '(unauth|401|403|forbidden|invalid token|expired)') AS keyword_auth,
-    regexp_matches(lower(coalesce(block.content::VARCHAR, '')), '(not found|404|no such file|does not exist)') AS keyword_not_found,
-    regexp_matches(lower(coalesce(block.content::VARCHAR, '')), '(timeout|timed out|deadline)') AS keyword_timeout,
-    regexp_matches(lower(coalesce(block.content::VARCHAR, '')), '(passed|passing|tests pass|test pass|build success|lint clean|typecheck pass|0 errors|all green)') AS keyword_test,
-    regexp_matches(lower(coalesce(block.content::VARCHAR, '')), '(commit|push|merge|branch|HEAD)') AS keyword_git,
-    regexp_matches(lower(coalesce(block.content::VARCHAR, '')), '(success|done|complete)') AS keyword_success
-FROM exploded;
+    regexp_matches(lower(n.block_content), '(error|exception|traceback|failed)') AS keyword_error,
+    regexp_matches(lower(n.block_content), '(unauth|401|403|forbidden|invalid token|expired)') AS keyword_auth,
+    regexp_matches(lower(n.block_content), '(not found|404|no such file|does not exist)') AS keyword_not_found,
+    regexp_matches(lower(n.block_content), '(timeout|timed out|deadline)') AS keyword_timeout,
+    regexp_matches(lower(n.block_content), '(passed|passing|tests pass|test pass|build success|lint clean|typecheck pass|0 errors|all green)') AS keyword_test,
+    regexp_matches(lower(n.block_content), '(commit|push|merge|branch|HEAD)') AS keyword_git,
+    regexp_matches(lower(n.block_content), '(success|done|complete)') AS keyword_success
+FROM normalized n
+JOIN jsonl_rows j
+  ON j.session_id = n.session_id
+ AND j.row_index_in_session = n.row_index_in_session;
 
 
 -- ----------------------------------------------------------------------------
@@ -222,25 +273,45 @@ FROM per_turn pt;
 
 
 -- ----------------------------------------------------------------------------
--- 4. human_messages: extract user-role rows
+-- 4. human_messages: extract user-role rows containing human text
 -- ----------------------------------------------------------------------------
 INSERT INTO human_messages BY NAME
+WITH per_message AS (
+    SELECT
+        session_id,
+        row_index_in_session,
+        any_value("timestamp") AS "timestamp",
+        any_value(cwd) AS cwd,
+        any_value(project) AS project,
+        any_value(environment) AS environment,
+        sum(result_chars)::UBIGINT AS prompt_chars,
+        string_agg(result_preview, ' ' ORDER BY block_index) AS prompt_text
+    FROM content_blocks
+    WHERE row_type = 'user'
+      AND block_type = 'text'
+    GROUP BY session_id, row_index_in_session
+)
 SELECT
-    md5(session_id || '|' || row_index_in_session) AS human_message_id,
-    NULL::UBIGINT AS row_id,
-    NULL::UBIGINT AS file_id,
-    session_id,
-    row_index_in_session,
-    row_number() OVER (PARTITION BY session_id ORDER BY row_index_in_session)::UINTEGER - 1 AS human_index_in_session,
-    "timestamp",
-    cwd,
-    project,
-    environment,
-    message_chars AS prompt_chars,
-    message_hash AS prompt_hash,
-    message_preview AS prompt_preview
-FROM jsonl_rows
-WHERE row_type = 'user';
+    md5(p.session_id || '|' || p.row_index_in_session) AS human_message_id,
+    j.row_id,
+    j.file_id,
+    p.session_id,
+    p.row_index_in_session,
+    row_number() OVER (
+        PARTITION BY p.session_id
+        ORDER BY p.row_index_in_session
+    )::UINTEGER - 1 AS human_index_in_session,
+    p."timestamp",
+    p.cwd,
+    p.project,
+    p.environment,
+    p.prompt_chars,
+    md5(coalesce(p.prompt_text, '')) AS prompt_hash,
+    substr(coalesce(p.prompt_text, ''), 1, 500) AS prompt_preview
+FROM per_message p
+JOIN jsonl_rows j
+  ON j.session_id = p.session_id
+ AND j.row_index_in_session = p.row_index_in_session;
 
 
 -- ----------------------------------------------------------------------------
@@ -337,11 +408,11 @@ FROM joined;
 INSERT INTO session_metrics BY NAME
 SELECT
     session_id,
-    1::UINTEGER AS source_files,
+    count(DISTINCT source_blob)::UINTEGER AS source_files,
     min("timestamp") AS first_timestamp,
     max("timestamp") AS last_timestamp,
     count(*)::UBIGINT AS "rows",
-    sum(CASE WHEN row_type = 'user' THEN 1 ELSE 0 END)::UBIGINT AS human_messages,
+    (SELECT count(*) FROM human_messages hm WHERE hm.session_id = j.session_id)::UBIGINT AS human_messages,
     sum(CASE WHEN row_type = 'assistant' THEN 1 ELSE 0 END)::UBIGINT AS assistant_turns,
     (SELECT count(*) FROM tool_events te WHERE te.session_id = j.session_id)::UBIGINT AS tool_events,
     (SELECT count(*) FROM tool_events te WHERE te.session_id = j.session_id AND te.result_block_id IS NOT NULL)::UBIGINT AS tool_results,
@@ -366,3 +437,5 @@ SELECT
     NULL::DOUBLE AS edit_to_read_ratio
 FROM jsonl_rows j
 GROUP BY session_id;
+
+DROP TABLE _raw_jsonl;

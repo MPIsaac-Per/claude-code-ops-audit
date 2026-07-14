@@ -1,0 +1,26 @@
+name: Method or adapter proposal
+description: Propose an analysis, schema extension, or adapter for another agent log format.
+title: "proposal: "
+labels: [enhancement, triage]
+body:
+  - type: textarea
+    id: question
+    attributes:
+      label: Research or operational question
+      description: State the question the change should answer.
+    validations:
+      required: true
+  - type: textarea
+    id: method
+    attributes:
+      label: Proposed method
+      description: Describe inputs, transformations, validation, and expected limitations.
+    validations:
+      required: true
+  - type: textarea
+    id: privacy
+    attributes:
+      label: Privacy boundary
+      description: Explain how the implementation avoids publishing private corpus data.
+    validations:
+      required: true

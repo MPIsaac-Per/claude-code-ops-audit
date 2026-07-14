@@ -177,7 +177,8 @@ CREATE TABLE IF NOT EXISTS assistant_turns (
 
 -- ----------------------------------------------------------------------------
 -- human_messages
--- One row per user message.
+-- One row per user-role message containing at least one human text block.
+-- Tool-result-only user rows are excluded.
 -- ----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS human_messages (
     human_message_id          VARCHAR,

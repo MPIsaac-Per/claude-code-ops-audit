@@ -20,7 +20,6 @@ from collections import Counter
 from datetime import UTC, datetime
 from typing import Any
 
-
 SENSITIVE_KEYS = {
     "arguments",
     "argument",
@@ -263,7 +262,9 @@ def attr_hash(attrs: dict[str, Any]) -> str:
             sanitized[key] = {"sha256": sha256_text(text), "chars": len(text)}
         else:
             sanitized[key] = value
-    return sha256_text(json.dumps(sanitized, sort_keys=True, separators=(",", ":"), ensure_ascii=False))
+    return sha256_text(
+        json.dumps(sanitized, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    )
 
 
 def safe_str(attrs: dict[str, Any], key: str) -> str:
@@ -307,7 +308,11 @@ def body_features(body: Any) -> tuple[str, str, str]:
     if body is None:
         return "null", "0", ""
     value = otel_value(body) if isinstance(body, dict) else body
-    text = value if isinstance(value, str) else json.dumps(value, separators=(",", ":"), sort_keys=True)
+    text = (
+        value
+        if isinstance(value, str)
+        else json.dumps(value, separators=(",", ":"), sort_keys=True)
+    )
     return type(value).__name__, str(len(text)), sha256_text(text)
 
 
@@ -344,7 +349,11 @@ def build_database(db_path: pathlib.Path, csv_dir: pathlib.Path) -> None:
             table_sql("telemetry_resources", RESOURCE_COLUMNS, csv_dir / "telemetry_resources.csv"),
             table_sql("telemetry_logs", LOG_COLUMNS, csv_dir / "telemetry_logs.csv"),
             table_sql("telemetry_spans", SPAN_COLUMNS, csv_dir / "telemetry_spans.csv"),
-            table_sql("telemetry_attr_key_counts", ATTR_KEY_COLUMNS, csv_dir / "telemetry_attr_key_counts.csv"),
+            table_sql(
+                "telemetry_attr_key_counts",
+                ATTR_KEY_COLUMNS,
+                csv_dir / "telemetry_attr_key_counts.csv",
+            ),
             """
 CREATE OR REPLACE VIEW telemetry_coverage_summary AS
 SELECT
@@ -415,7 +424,9 @@ def main() -> int:
 
     files = sorted(root.rglob("*.otlp"))
     file_handle, file_writer = write_header(csv_dir / "telemetry_files.csv", FILES_COLUMNS)
-    resource_handle, resource_writer = write_header(csv_dir / "telemetry_resources.csv", RESOURCE_COLUMNS)
+    resource_handle, resource_writer = write_header(
+        csv_dir / "telemetry_resources.csv", RESOURCE_COLUMNS
+    )
     log_handle, log_writer = write_header(csv_dir / "telemetry_logs.csv", LOG_COLUMNS)
     span_handle, span_writer = write_header(csv_dir / "telemetry_spans.csv", SPAN_COLUMNS)
 
@@ -468,7 +479,9 @@ def main() -> int:
                             "env": safe_str(resource_attrs, "env"),
                             "terminal_type": safe_str(resource_attrs, "terminal.type"),
                             "host_hash": sha256_text(str(resource_attrs.get("host.name") or "")),
-                            "machine_hash": sha256_text(str(resource_attrs.get("machine.name") or "")),
+                            "machine_hash": sha256_text(
+                                str(resource_attrs.get("machine.name") or "")
+                            ),
                             "attr_count": len(resource_attrs),
                             "attr_keys": attr_keys(resource_attrs),
                             "sensitive_attr_keys": sensitive_keys(resource_attrs),
@@ -496,7 +509,11 @@ def main() -> int:
                             if signal_type == "logs":
                                 log_id += 1
                                 observed_time = ns_to_iso(record.get("observedTimeUnixNano"))
-                                event_time = parse_iso(attrs.get("event.timestamp")) or ns_to_iso(record.get("timeUnixNano")) or observed_time
+                                event_time = (
+                                    parse_iso(attrs.get("event.timestamp"))
+                                    or ns_to_iso(record.get("timeUnixNano"))
+                                    or observed_time
+                                )
                                 if event_time:
                                     file_event_times.append(event_time)
                                 arg_chars, arg_hash = value_chars_hash(attrs, "arguments")
@@ -516,7 +533,9 @@ def main() -> int:
                                         "severity_text": record.get("severityText") or "",
                                         "event_name": safe_str(attrs, "event.name"),
                                         "event_kind": safe_str(attrs, "event.kind"),
-                                        "conversation_id_hash": sha256_text(str(attrs.get("conversation.id") or "")),
+                                        "conversation_id_hash": sha256_text(
+                                            str(attrs.get("conversation.id") or "")
+                                        ),
                                         "model": safe_str(attrs, "model"),
                                         "slug": safe_str(attrs, "slug"),
                                         "originator": safe_str(attrs, "originator"),
@@ -555,7 +574,9 @@ def main() -> int:
                                     file_event_times.append(start_time)
                                 start_ns = int(record.get("startTimeUnixNano") or 0)
                                 end_ns = int(record.get("endTimeUnixNano") or 0)
-                                duration_ms = (end_ns - start_ns) / 1_000_000 if start_ns and end_ns else ""
+                                duration_ms = (
+                                    (end_ns - start_ns) / 1_000_000 if start_ns and end_ns else ""
+                                )
                                 status = record.get("status") or {}
                                 cwd = str(attrs.get("cwd") or "")
                                 span_writer.writerow(
@@ -565,16 +586,24 @@ def main() -> int:
                                         "resource_id": resource_id,
                                         "scope_name": scope_name,
                                         "scope_version": scope_version,
-                                        "trace_id_hash": sha256_text(str(record.get("traceId") or "")),
-                                        "span_id_hash": sha256_text(str(record.get("spanId") or "")),
-                                        "parent_span_id_hash": sha256_text(str(record.get("parentSpanId") or "")),
+                                        "trace_id_hash": sha256_text(
+                                            str(record.get("traceId") or "")
+                                        ),
+                                        "span_id_hash": sha256_text(
+                                            str(record.get("spanId") or "")
+                                        ),
+                                        "parent_span_id_hash": sha256_text(
+                                            str(record.get("parentSpanId") or "")
+                                        ),
                                         "span_name": record.get("name") or "",
                                         "span_kind": record.get("kind") or "",
                                         "start_time": start_time,
                                         "end_time": end_time,
                                         "duration_ms": duration_ms,
                                         "status_code": status.get("code") or "",
-                                        "status_message_hash": sha256_text(str(status.get("message") or "")),
+                                        "status_message_hash": sha256_text(
+                                            str(status.get("message") or "")
+                                        ),
                                         "service_name": service_name,
                                         "service_version": service_version,
                                         "tool_name": safe_str(attrs, "tool_name"),
@@ -588,8 +617,12 @@ def main() -> int:
                                         "target": safe_str(attrs, "target"),
                                         "cwd_hash": sha256_text(cwd),
                                         "cwd_environment": cwd_environment(cwd),
-                                        "turn_id_hash": sha256_text(str(attrs.get("turn_id") or "")),
-                                        "call_id_hash": sha256_text(str(attrs.get("call_id") or "")),
+                                        "turn_id_hash": sha256_text(
+                                            str(attrs.get("turn_id") or "")
+                                        ),
+                                        "call_id_hash": sha256_text(
+                                            str(attrs.get("call_id") or "")
+                                        ),
                                         "attr_count": len(attrs),
                                         "attr_keys": keys,
                                         "sensitive_attr_keys": sensitive,
@@ -623,8 +656,12 @@ def main() -> int:
         for handle in [file_handle, resource_handle, log_handle, span_handle]:
             handle.close()
 
-    with (csv_dir / "telemetry_attr_key_counts.csv").open("w", newline="", encoding="utf-8") as handle:
-        writer = csv.DictWriter(handle, fieldnames=[name for name, _ in ATTR_KEY_COLUMNS], extrasaction="ignore")
+    with (csv_dir / "telemetry_attr_key_counts.csv").open(
+        "w", newline="", encoding="utf-8"
+    ) as handle:
+        writer = csv.DictWriter(
+            handle, fieldnames=[name for name, _ in ATTR_KEY_COLUMNS], extrasaction="ignore"
+        )
         writer.writeheader()
         for (signal_type, key), count in sorted(attr_counts.items()):
             writer.writerow({"signal_type": signal_type, "attr_key": key, "record_count": count})
