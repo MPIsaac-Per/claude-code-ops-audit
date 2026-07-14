@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="640" viewBox="0 0 1280 640" role="img" aria-labelledby="title desc">
+  <title id="title">claude-code-ops-audit</title>
+  <desc id="desc">MPIsaac Ventures open-source social preview for auditable Claude Code session analysis.</desc>
+  <defs>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#4A90A4"/>
+      <stop offset="0.5" stop-color="#5B9BD5"/>
+      <stop offset="1" stop-color="#2E5984"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.78" cy="0.48" r="0.58">
+      <stop offset="0" stop-color="#5B9BD5" stop-opacity="0.19"/>
+      <stop offset="1" stop-color="#0D0F12" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1280" height="640" fill="#0D0F12"/>
+  <rect width="1280" height="640" fill="url(#glow)"/>
+  <g fill="none" stroke="#7D8996" stroke-opacity="0.16">
+    <path d="M824 190H1192M824 250H1192M824 310H1192M824 370H1192M824 430H1192"/>
+    <path d="M884 160V460M964 160V460M1044 160V460M1124 160V460"/>
+  </g>
+  <path d="M824 375L872 375L902 306L946 414L986 258L1028 348L1072 292L1116 375H1192" fill="none" stroke="url(#accent)" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  <g transform="translate(72 70)" fill="none" stroke="url(#accent)" stroke-linecap="round">
+    <path d="M0 12Q12 4 24 12T48 12T72 12" stroke-width="4"/>
+    <path d="M0 24Q12 16 24 24T48 24T72 24" stroke-width="4" opacity="0.7"/>
+    <path d="M0 36Q12 28 24 36T48 36T72 36" stroke-width="4" opacity="0.45"/>
+  </g>
+  <text x="168" y="103" fill="#F2F5F8" font-family="Inter, Helvetica Neue, Arial, sans-serif" font-size="27" font-weight="500">MPIsaac Ventures</text>
+  <rect x="1030" y="66" width="178" height="44" rx="22" fill="#12171D" stroke="#2A333D"/>
+  <text x="1119" y="94" text-anchor="middle" fill="#9FAAB7" font-family="Inter, Helvetica Neue, Arial, sans-serif" font-size="15" font-weight="650" letter-spacing="2.4">OPEN SOURCE</text>
+  <path d="M72 142H1208" stroke="#29313A"/>
+  <text x="72" y="218" fill="#6FA7D8" font-family="Inter, Helvetica Neue, Arial, sans-serif" font-size="17" font-weight="700" letter-spacing="4">AUDIT METHODOLOGY</text>
+  <text x="72" y="304" fill="#F2F5F8" font-family="Inter, Helvetica Neue, Arial, sans-serif" font-size="66" font-weight="650" letter-spacing="-1.5">claude-code-</text>
+  <text x="72" y="378" fill="#F2F5F8" font-family="Inter, Helvetica Neue, Arial, sans-serif" font-size="66" font-weight="650" letter-spacing="-1.5">ops-audit</text>
+  <text x="72" y="448" fill="#AAB3BE" font-family="Inter, Helvetica Neue, Arial, sans-serif" font-size="26" font-weight="400">Auditable methods for Claude Code session logs.</text>
+  <path d="M72 530H1208" stroke="#29313A"/>
+  <text x="72" y="580" fill="#7F8B98" font-family="Inter, Helvetica Neue, Arial, sans-serif" font-size="20">github.com/MPIsaac-Per</text>
+  <text x="1208" y="580" text-anchor="end" fill="#7F8B98" font-family="Inter, Helvetica Neue, Arial, sans-serif" font-size="20">MIT LICENSE</text>
+</svg>
