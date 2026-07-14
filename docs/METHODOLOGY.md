@@ -84,7 +84,8 @@ populates six of the eight base tables:
 3. **assistant_turns** — aggregates content_blocks per assistant message.
    Computes `tool_use_count`, `thinking_block_count`, `text_chars`,
    completion_claim and verification_claim flags
-4. **human_messages** — extracts user-role rows
+4. **human_messages** extracts user-role rows with human text blocks and
+   excludes tool-result-only carrier messages.
 5. **tool_events** — joins `tool_use` blocks with their corresponding
    `tool_result` blocks, computes sequencing (previous_tool_name,
    next_tool_name), keyword flags on the result text

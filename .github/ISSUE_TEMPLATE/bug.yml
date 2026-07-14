@@ -1,0 +1,43 @@
+name: Reproduction discrepancy
+description: Report a schema, query, ingest, or classifier result that does not reproduce.
+title: "bug: "
+labels: [bug, triage]
+body:
+  - type: markdown
+    attributes:
+      value: Do not include raw transcripts, credentials, customer data, private paths, or identifiable prompt text.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Ingest
+        - Schema or views
+        - Analysis query
+        - Classifier
+        - Documentation
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Sanitized reproduction
+      description: Provide synthetic input, commands, expected output, and actual output.
+    validations:
+      required: true
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      placeholder: DuckDB 1.5.4, Python 3.13, Claude Code 2.x
+    validations:
+      required: true
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Pre-submission checks
+      options:
+        - label: I used synthetic or fully sanitized data.
+          required: true
+        - label: I searched existing issues for this discrepancy.
+          required: true

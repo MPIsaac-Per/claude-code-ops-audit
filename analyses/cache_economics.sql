@@ -8,7 +8,7 @@
 -- Expected findings (one operator, multi-month corpus):
 --   - Even early turns (1-5) are 93%+ cache by token count
 --   - Deep turns (200+) are 99.94% cache: ~194,000 cache tokens vs 116 fresh
---   - This is the load-bearing economic substrate of agentic coding
+--   - This is the economic substrate of agentic coding
 -- ============================================================================
 
 

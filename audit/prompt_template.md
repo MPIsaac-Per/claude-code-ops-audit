@@ -82,7 +82,7 @@ Return a brief summary under 80 words.
 
 ## Notes on prompt design
 
-- **The "you ARE the classifier" line is load-bearing.** Without it, the model
+- **The "you ARE the classifier" line is decisive.** Without it, the model
   often writes a keyword-matching Python function that pretends to classify,
   rather than actually reading and judging each row.
 - **The unique-reasoning quality gate** (must produce > 60 unique strings)

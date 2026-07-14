@@ -1,12 +1,17 @@
-# claude-code-ops-audit
+# Claude Code ops audit
+
+[![CI](https://github.com/MPIsaac-Per/claude-code-ops-audit/actions/workflows/ci.yml/badge.svg)](https://github.com/MPIsaac-Per/claude-code-ops-audit/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/MPIsaac-Per/claude-code-ops-audit/actions/workflows/codeql.yml/badge.svg)](https://github.com/MPIsaac-Per/claude-code-ops-audit/actions/workflows/codeql.yml)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/MPIsaac-Per/claude-code-ops-audit/badge)](https://scorecard.dev/viewer/?uri=github.com/MPIsaac-Per/claude-code-ops-audit)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 > Methodology and tooling for auditing your own Claude Code session logs.
 > Bring your JSONLs, run the pipeline, draw conclusions.
 
-This repository ships **methodology only — no data**. It's the schema, queries,
+This repository ships **methodology only, no data**. It contains the schema, queries,
 and audit prompts I used to derive findings about how Claude Code actually
 behaves in real long-running sessions, applied to a single operator's corpus
-of ~245,000 tool calls across ~4,200 sessions.
+of about 245,000 tool calls.
 
 If you have your own Claude Code logs (`~/.claude/projects/`), you can run
 this pipeline against them and reproduce the analyses on your own data.
@@ -50,9 +55,10 @@ this pipeline against them and reproduce the analyses on your own data.
 ### Prerequisites
 
 ```bash
-brew install duckdb           # or: pip install duckdb
-pip install anthropic         # only if you plan to run the audit classifier
-export ANTHROPIC_API_KEY=...  # only if you plan to run the audit classifier
+brew install duckdb          # command-line SQL runner
+uv sync --locked --dev       # tests and development checks
+uv sync --extra audit        # classifier runtime
+export ANTHROPIC_API_KEY=... # classifier only
 ```
 
 ### 1. Build the mart
@@ -234,7 +240,7 @@ The `analyses/` queries surface:
   `analyses/fpk_count.py`, `analyses/fpk_correlate.py`, and the interactive
   `analyses/fpk_tui.py` dashboard.
 
-Your numbers will differ. That's the point — run it on your own logs.
+Your numbers will differ. Run the methodology on your own logs.
 
 ## Field Manual skills
 
@@ -248,8 +254,8 @@ public operating system for agentic coding:
   while coding: micro-sprints, loop shaping, verification receipts,
   diagnosis-before-retry, stuckness interrupts, and human rescue.
 
-The key thesis is that elite agentic coding is not just better prompting. It is
-management of the agent's execution loop.
+The operating thesis is that agentic coding quality depends on management of
+the agent's execution loop.
 
 Completed Field Manual research should be promoted to a private knowledge base,
 while this repo keeps reusable public machinery and `.runs/` stays local. See
@@ -283,10 +289,17 @@ comments in each `.sql` file capture the core observations.
 
 ## License
 
-MIT — see `LICENSE`.
+MIT. See `LICENSE`.
 
 ## Contributing
 
-Methodology PRs and adapter scripts for other agentic CLI tools (Cursor logs,
-Codex CLI logs, Aider history, etc.) are welcome. Issues that report
-discrepancies or fail-to-reproduce on different corpora are also welcome.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for local checks and contribution scope.
+Report vulnerabilities through the private process in [SECURITY.md](SECURITY.md).
+
+## Open-source research collection
+
+This repository is one part of Michael Isaac's public agent engineering collection:
+
+- [claude-code-loop-patterns](https://github.com/MPIsaac-Per/claude-code-loop-patterns), tested controls for agent loops
+- [agentinfra-examples](https://github.com/MPIsaac-Per/agentinfra-examples), infrastructure and observability examples
+- [mpiv.ai open-source research](https://mpiv.ai/#code), the collection index

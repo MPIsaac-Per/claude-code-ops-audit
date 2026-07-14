@@ -15,6 +15,7 @@ Defaults to ~/.claude/projects/ (the standard Claude Code log location).
 
 Pair with analyses/fpk_correlate.py for per-model and per-CC-version rates.
 """
+
 import argparse
 import json
 import os
@@ -23,12 +24,21 @@ import sys
 from collections import Counter, defaultdict
 from pathlib import Path
 
-
 WRAPPER_TAGS = [
-    "system-reminder", "command-name", "command-args", "command-message",
-    "command-output", "local-command-stdout", "local-command-stderr",
-    "user-prompt-submit-hook", "bash-input", "bash-stdout", "bash-stderr",
-    "command-stderr", "command-stdout", "command-content",
+    "system-reminder",
+    "command-name",
+    "command-args",
+    "command-message",
+    "command-output",
+    "local-command-stdout",
+    "local-command-stderr",
+    "user-prompt-submit-hook",
+    "bash-input",
+    "bash-stdout",
+    "bash-stderr",
+    "command-stderr",
+    "command-stdout",
+    "command-content",
 ]
 WRAPPER_BLOCK = re.compile(
     r"<(" + "|".join(WRAPPER_TAGS) + r")>.*?</\1>",
@@ -40,11 +50,15 @@ WRAPPER_LOOSE = re.compile(
 )
 
 PATTERNS = {
-    "fuck (and inflections)":  re.compile(r"\bf+u+c+k+\w*\b", re.IGNORECASE),
-    "motherfuck (full form)":  re.compile(r"\bmother\s*f+u+c+k+\w*\b", re.IGNORECASE),
-    "censored (f*ck, f**k)":   re.compile(r"\bf[\*#@!]{1,3}ck\w*\b", re.IGNORECASE),
-    "fck abbreviations":       re.compile(r"\b(?:fck|fckn|fckin|fcking|fkin|fking|fkn)\w*\b", re.IGNORECASE),
-    "wtf / stfu / mf / mofo":  re.compile(r"\b(?:wtf|stfu|mfer|mfers|mofo|fubar|gtfo)\b", re.IGNORECASE),
+    "fuck (and inflections)": re.compile(r"\bf+u+c+k+\w*\b", re.IGNORECASE),
+    "motherfuck (full form)": re.compile(r"\bmother\s*f+u+c+k+\w*\b", re.IGNORECASE),
+    "censored (f*ck, f**k)": re.compile(r"\bf[\*#@!]{1,3}ck\w*\b", re.IGNORECASE),
+    "fck abbreviations": re.compile(
+        r"\b(?:fck|fckn|fckin|fcking|fkin|fking|fkn)\w*\b", re.IGNORECASE
+    ),
+    "wtf / stfu / mf / mofo": re.compile(
+        r"\b(?:wtf|stfu|mfer|mfers|mofo|fubar|gtfo)\b", re.IGNORECASE
+    ),
 }
 
 
@@ -101,7 +115,10 @@ def main():
     for fp in corpus.rglob("*.jsonl"):
         files_done += 1
         if files_done % 500 == 0:
-            print(f"  {files_done:,}/{files_total:,} files; running total = {sum(counts.values()):,}", file=sys.stderr)
+            print(
+                f"  {files_done:,}/{files_total:,} files; running total = {sum(counts.values()):,}",
+                file=sys.stderr,
+            )
         try:
             with fp.open("r", encoding="utf-8", errors="replace") as f:
                 for line in f:
@@ -137,20 +154,20 @@ def main():
             print(f"  ERROR {fp}: {ex}", file=sys.stderr)
 
     total = sum(counts.values())
-    print(f"\n=== Scope ===")
+    print("\n=== Scope ===")
     print(f"Files scanned:                {files_done:,}")
     print(f"Human user text fragments:    {user_fragments:,}")
     print(f"Characters of user text:      {chars_scanned:,}")
     print(f"Sessions with at least one:   {len(sessions_with_fbombs):,}")
-    print(f"\n=== F-word counts by category ===")
+    print("\n=== F-word counts by category ===")
     for label in PATTERNS:
         print(f"  {label:32s}  {counts[label]:>6,}")
-    print(f"  {'-'*32}  {'-'*6}")
+    print(f"  {'-' * 32}  {'-' * 6}")
     print(f"  {'TOTAL':32s}  {total:>6,}")
-    print(f"\n=== By month ===")
+    print("\n=== By month ===")
     for month in sorted(by_month):
         print(f"  {month}: {by_month[month]:>5,}")
-    print(f"\n=== Sample contexts (first match per category) ===")
+    print("\n=== Sample contexts (first match per category) ===")
     for label, ss in samples.items():
         if ss:
             print(f"\n  [{label}]")

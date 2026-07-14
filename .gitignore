@@ -2,6 +2,8 @@
 *.duckdb
 *.duckdb.wal
 *.jsonl
+# Synthetic regression fixtures contain no user session data.
+!tests/fixtures/*.jsonl
 chunks/
 audit_sample*.csv
 audit_*_labeled.csv
@@ -19,6 +21,9 @@ __pycache__/
 .venv/
 venv/
 .python-version
+.coverage
+coverage.xml
+htmlcov/
 
 # Editor
 .DS_Store
