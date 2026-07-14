@@ -1,5 +1,7 @@
 # Claude Code ops audit
 
+![Claude Code ops audit by MPIsaac Ventures](assets/social-preview.png)
+
 [![CI](https://github.com/MPIsaac-Per/claude-code-ops-audit/actions/workflows/ci.yml/badge.svg)](https://github.com/MPIsaac-Per/claude-code-ops-audit/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/MPIsaac-Per/claude-code-ops-audit/actions/workflows/codeql.yml/badge.svg)](https://github.com/MPIsaac-Per/claude-code-ops-audit/actions/workflows/codeql.yml)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/MPIsaac-Per/claude-code-ops-audit/badge)](https://scorecard.dev/viewer/?uri=github.com/MPIsaac-Per/claude-code-ops-audit)
