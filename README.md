@@ -35,6 +35,7 @@ this pipeline against them and reproduce the analyses on your own data.
 | `analyses/tool_family_latency.sql` | Per-tool-family wall-clock latency estimated from successive JSONL timestamps |
 | `analyses/field_manual_protocols.sql` | Field Manual query pack: autonomy half-life, agent loop map, verification-debt surface, stuckness cost, and rescue patterns |
 | `analyses/codex_telemetry_filtered.sql` | Codex/OpenTelemetry runtime analysis with stream-loop span and response-delta noise separated from operational telemetry |
+| `analyses/build_report.py` | Builds `.runs/analysis_report.md`: corpus summary, caveats, and every analysis's header prose plus query output as Markdown |
 | `analyses/build_conversation_archive_catalog.py` | Catalog every rolling conversation blob while marking the canonical latest snapshot per session |
 | `analyses/build_telemetry_mart.py` | Build a sanitized OTLP telemetry mart with sensitive values suppressed and hashed |
 | `analyses/fpk_count.py` | fpk overall + by category and month (raw JSONL, no mart needed) |
@@ -108,11 +109,18 @@ runs every `analyses/*.sql` file against the mart (except
 step 2b, below). Point it at a non-default mart with `make analyses
 DB=/path/to/other.duckdb`.
 
-To capture the output as a Markdown report instead of printing to the
-terminal:
+To capture the output as a self-describing Markdown report instead of
+printing to the terminal — corpus summary, caveats, and per-analysis prose
+and tables, all in one file — run:
 
 ```bash
-make report   # writes .runs/analysis_report.md
+make report   # writes .runs/analysis_report.md via analyses/build_report.py
+```
+
+Without `make`, invoke the script directly:
+
+```bash
+python3 analyses/build_report.py --db ~/data/claude_code.duckdb --out .runs/analysis_report.md
 ```
 
 Each `.sql` file in `analyses/` is also a standalone script with multiple

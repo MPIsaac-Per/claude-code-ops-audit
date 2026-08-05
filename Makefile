@@ -28,8 +28,9 @@ mart: ## Build the DuckDB mart from CORPUS into DB (schema -> ingest -> views)
 		| duckdb "$(DB)"
 
 # codex_telemetry_filtered.sql runs against the separate telemetry mart built
-# by analyses/build_telemetry_mart.py, not the DB above, so both loops below
-# skip it. Run it manually once you have a telemetry mart (see README).
+# by analyses/build_telemetry_mart.py, not the DB above, so this loop (and
+# build_report.py's default --skip) leaves it out. Run it manually once you
+# have a telemetry mart (see README).
 analyses: ## Run every analyses/*.sql against DB (skips codex_telemetry_filtered.sql)
 	for f in analyses/*.sql; do \
 		case "$$f" in \
@@ -39,20 +40,8 @@ analyses: ## Run every analyses/*.sql against DB (skips codex_telemetry_filtered
 		duckdb "$(DB)" < "$$f" || exit 1; \
 	done
 
-report: ## Run the analyses and write a Markdown report to .runs/analysis_report.md
-	mkdir -p .runs
-	: > .runs/analysis_report.md
-	for f in analyses/*.sql; do \
-		case "$$f" in \
-			*codex_telemetry_filtered.sql) continue ;; \
-		esac; \
-		echo "## $$f" >> .runs/analysis_report.md; \
-		echo '```' >> .runs/analysis_report.md; \
-		duckdb "$(DB)" < "$$f" >> .runs/analysis_report.md || exit 1; \
-		echo '```' >> .runs/analysis_report.md; \
-		echo >> .runs/analysis_report.md; \
-	done
-	echo "Report written to .runs/analysis_report.md"
+report: ## Build a self-describing Markdown report (corpus summary, caveats, per-analysis) to .runs/analysis_report.md
+	python3 analyses/build_report.py --db "$(DB)"
 
 check: ## Run the CI-equivalent dev suite (see CONTRIBUTING.md)
 	uv run ruff check .
