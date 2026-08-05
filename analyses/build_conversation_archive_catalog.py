@@ -217,7 +217,7 @@ def main() -> int:
     args = parser.parse_args()
 
     blobs = load_json(args.index.expanduser())
-    latest_names: set[str] = set()
+    latest_names: set[str] | None = None
     if args.latest_index:
         latest_names = {str(item.get("name")) for item in load_json(args.latest_index.expanduser())}
 
@@ -247,8 +247,8 @@ def main() -> int:
         snapshot_count = len(snapshots)
         latest = snapshots[0]
         latest_name = str(latest.get("name") or "")
-        latest_in_index = latest_name in latest_names if latest_names else True
-        if latest_names and not latest_in_index:
+        latest_in_index = latest_name in latest_names if latest_names is not None else True
+        if latest_names is not None and not latest_in_index:
             mismatched_latest += 1
 
         path_days = [path_day(str(blob.get("name") or "")) for blob in snapshots]
@@ -258,10 +258,10 @@ def main() -> int:
                 "session_id": sid,
                 "snapshot_count": snapshot_count,
                 "total_snapshot_bytes": sum(int(blob.get("bytes") or 0) for blob in snapshots),
-                "first_path_day": min(day for day in path_days if day),
-                "last_path_day": max(day for day in path_days if day),
-                "first_blob_modified": min(ts for ts in modified if ts),
-                "last_blob_modified": max(ts for ts in modified if ts),
+                "first_path_day": min((day for day in path_days if day), default=""),
+                "last_path_day": max((day for day in path_days if day), default=""),
+                "first_blob_modified": min((ts for ts in modified if ts), default=""),
+                "last_blob_modified": max((ts for ts in modified if ts), default=""),
                 "latest_blob": latest_name,
                 "latest_blob_bytes": int(latest.get("bytes") or 0),
                 "latest_blob_modified": iso(latest.get("lastModified")),
@@ -293,7 +293,7 @@ def main() -> int:
                 "snapshot_count_for_session": snapshot_count,
                 "is_latest_by_rank": bool_csv(rank == 1),
                 "is_latest_index_member": bool_csv(
-                    name in latest_names if latest_names else rank == 1
+                    name in latest_names if latest_names is not None else rank == 1
                 ),
                 "metadata_host_hash": sha256_text(str(metadata.get("host") or "")),
                 "metadata_original_path_hash": sha256_text(str(metadata.get("originalPath") or "")),
@@ -350,13 +350,17 @@ def main() -> int:
             for row in catalog_rows
             if row["is_latest_by_rank"] == "false"
         ),
-        "path_day_start": min(row["path_day"] for row in catalog_rows if row["path_day"]),
-        "path_day_end": max(row["path_day"] for row in catalog_rows if row["path_day"]),
+        "path_day_start": min(
+            (row["path_day"] for row in catalog_rows if row["path_day"]), default=""
+        ),
+        "path_day_end": max(
+            (row["path_day"] for row in catalog_rows if row["path_day"]), default=""
+        ),
         "blob_modified_start": min(
-            row["last_modified"] for row in catalog_rows if row["last_modified"]
+            (row["last_modified"] for row in catalog_rows if row["last_modified"]), default=""
         ),
         "blob_modified_end": max(
-            row["last_modified"] for row in catalog_rows if row["last_modified"]
+            (row["last_modified"] for row in catalog_rows if row["last_modified"]), default=""
         ),
         "sessions_where_rank_latest_not_in_supplied_index": mismatched_latest,
     }

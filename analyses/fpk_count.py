@@ -126,6 +126,8 @@ def main():
                         row = json.loads(line)
                     except Exception:
                         continue
+                    if not isinstance(row, dict):
+                        continue
                     session_id = row.get("sessionId") or row.get("session_id")
                     ts = row.get("timestamp") or ""
                     month = ts[:7] if isinstance(ts, str) and len(ts) >= 7 else "unknown"
