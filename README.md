@@ -66,7 +66,23 @@ uv sync --extra audit        # classifier runtime
 export ANTHROPIC_API_KEY=... # classifier only
 ```
 
+`make` drives the steps below; it ships with Xcode Command Line Tools on
+macOS and `build-essential` on Linux, so it's usually already installed.
+
 ### 1. Build the mart
+
+```bash
+make mart
+```
+
+Override the defaults if your logs or target database live elsewhere:
+
+```bash
+make mart DB=/path/to/other.duckdb CORPUS='/path/to/logs/**/*.jsonl'
+```
+
+`DB` defaults to `~/data/claude_code.duckdb`, `CORPUS` to
+`~/.claude/projects/**/*.jsonl`. Under the hood `make mart` runs:
 
 ```bash
 mkdir -p ~/data
@@ -83,8 +99,24 @@ DuckDB file in the hundreds of MB to low GB range.
 
 ### 2. Run the analyses
 
-Each `.sql` file in `analyses/` is a standalone script with multiple queries
-and inline comments. Run them with:
+```bash
+make analyses
+```
+
+runs every `analyses/*.sql` file against the mart (except
+`codex_telemetry_filtered.sql`, which needs the separate telemetry mart from
+step 2b, below). Point it at a non-default mart with `make analyses
+DB=/path/to/other.duckdb`.
+
+To capture the output as a Markdown report instead of printing to the
+terminal:
+
+```bash
+make report   # writes .runs/analysis_report.md
+```
+
+Each `.sql` file in `analyses/` is also a standalone script with multiple
+queries and inline comments, so you can run any one of them directly:
 
 ```bash
 duckdb ~/data/claude_code.duckdb < analyses/parallel_tool_calls.sql
