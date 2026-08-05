@@ -218,9 +218,11 @@ def otel_value(value: dict[str, Any] | None) -> Any:
     if "stringValue" in value:
         return value.get("stringValue") or ""
     if "intValue" in value:
-        return value.get("intValue") or ""
+        int_value = value.get("intValue")
+        return "" if int_value is None else int_value
     if "doubleValue" in value:
-        return value.get("doubleValue") or ""
+        double_value = value.get("doubleValue")
+        return "" if double_value is None else double_value
     if "boolValue" in value:
         return value.get("boolValue")
     if "arrayValue" in value:
@@ -277,6 +279,8 @@ def safe_str(attrs: dict[str, Any], key: str) -> str:
 
 
 def safe_int(attrs: dict[str, Any], key: str) -> str:
+    if key.lower() in SENSITIVE_KEYS:
+        return ""
     value = attrs.get(key)
     if value in (None, ""):
         return ""
@@ -287,6 +291,8 @@ def safe_int(attrs: dict[str, Any], key: str) -> str:
 
 
 def safe_float(attrs: dict[str, Any], key: str) -> str:
+    if key.lower() in SENSITIVE_KEYS:
+        return ""
     value = attrs.get(key)
     if value in (None, ""):
         return ""
@@ -320,9 +326,11 @@ def cwd_environment(cwd: str) -> str:
     if not cwd:
         return ""
     if cwd.startswith("/Users/"):
-        return "macbook"
+        return "macos"
     if cwd.startswith("/opt/") or cwd.startswith("/home/"):
         return "server"
+    if re.match(r"^[A-Za-z]:[\\/]", cwd) or cwd.startswith("\\\\"):
+        return "windows"
     return "other"
 
 

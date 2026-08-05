@@ -170,9 +170,11 @@ def main():
         rows = []
         for line in lines:
             try:
-                rows.append(json.loads(line))
+                row = json.loads(line)
             except Exception:
                 continue
+            if isinstance(row, dict):
+                rows.append(row)
 
         by_session = defaultdict(list)
         order = defaultdict(int)

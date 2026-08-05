@@ -27,6 +27,8 @@ SELECT
     round(avg(cache_read_input_tokens),      0) AS avg_cache_read,
     round(avg(cache_creation_input_tokens),  0) AS avg_cache_creation,
     round(avg(output_tokens),                0) AS avg_output,
+    -- Cache-creation tokens are their own bucket and are excluded from this
+    -- ratio; it compares cache reads against fresh input only.
     round(100.0 * avg(cache_read_input_tokens) / NULLIF(avg(cache_read_input_tokens) + avg(input_tokens), 0), 2) AS pct_cache_of_input
 FROM assistant_turns
 WHERE input_tokens IS NOT NULL

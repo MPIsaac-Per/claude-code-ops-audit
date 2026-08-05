@@ -89,7 +89,7 @@ SELECT
     cwd,
     -- "project" is a derived label; here we use the parent directory name
     regexp_extract(cwd, '([^/]+)$', 1) AS project,
-    -- "environment" is a tag the user may apply; default to hostname
+    -- "environment" is an optional tag the user may apply; not derived here
     NULL AS environment,
     version,
     gitBranch AS git_branch,
@@ -433,8 +433,12 @@ SELECT
     mode(environment) AS primary_environment,
     string_agg(DISTINCT message_model, ',' ORDER BY message_model) AS models,
     string_agg(DISTINCT version, ',' ORDER BY version) AS versions,
-    NULL::DOUBLE AS tool_calls_per_human_message,
-    NULL::DOUBLE AS edit_to_read_ratio
+    ((SELECT count(*) FROM tool_events te WHERE te.session_id = j.session_id)::DOUBLE
+        / NULLIF((SELECT count(*) FROM human_messages hm WHERE hm.session_id = j.session_id), 0)
+    ) AS tool_calls_per_human_message,
+    ((SELECT count(*) FROM tool_events te WHERE te.session_id = j.session_id AND te.tool_family = 'file_write')::DOUBLE
+        / NULLIF((SELECT count(*) FROM tool_events te WHERE te.session_id = j.session_id AND te.tool_family = 'file_read'), 0)
+    ) AS edit_to_read_ratio
 FROM jsonl_rows j
 GROUP BY session_id;
 

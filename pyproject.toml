@@ -1,6 +1,6 @@
 [project]
 name = "claude-code-ops-audit"
-version = "0.1.0"
+version = "0.1.1"
 description = "Methods and tools for auditing Claude Code session logs"
 readme = "README.md"
 requires-python = ">=3.11"

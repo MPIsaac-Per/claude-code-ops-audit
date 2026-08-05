@@ -213,6 +213,9 @@ LEFT JOIN tool_events prev
 CREATE OR REPLACE VIEW plausible_completion_candidates AS
 SELECT
     a.*,
+    -- text_preview is substr(text, 1, 500), so the preview is the full turn
+    -- text whenever the turn fits in 500 chars. The audit rubric uses this.
+    (a.text_chars <= 500) AS preview_is_full,
     sm.tool_events  AS session_tool_events,
     sm.error_events AS session_error_events,
     (

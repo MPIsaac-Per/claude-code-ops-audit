@@ -6,14 +6,20 @@ import duckdb
 
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURE = ROOT / "tests" / "fixtures" / "session.jsonl"
+COLLISION_GLOB = ROOT / "tests" / "fixtures" / "collision_*.jsonl"
+
+
+def ingest(glob: str) -> duckdb.DuckDBPyConnection:
+    connection = duckdb.connect(":memory:")
+    connection.execute((ROOT / "schema" / "01_tables.sql").read_text())
+    escaped = glob.replace("'", "''")
+    connection.execute(f"SET VARIABLE jsonl_glob = '{escaped}'")
+    connection.execute((ROOT / "ingest" / "jsonl_to_duckdb.sql").read_text())
+    return connection
 
 
 def test_ingest_preserves_scan_order_and_excludes_tool_result_carriers():
-    connection = duckdb.connect(":memory:")
-    connection.execute((ROOT / "schema" / "01_tables.sql").read_text())
-    fixture = str(FIXTURE).replace("'", "''")
-    connection.execute(f"SET VARIABLE jsonl_glob = '{fixture}'")
-    connection.execute((ROOT / "ingest" / "jsonl_to_duckdb.sql").read_text())
+    connection = ingest(str(FIXTURE))
 
     assert connection.execute("SELECT count(*) FROM jsonl_rows").fetchone() == (4,)
     assert connection.execute("SELECT count(*) FROM content_blocks").fetchone() == (5,)
@@ -39,6 +45,43 @@ def test_ingest_preserves_scan_order_and_excludes_tool_result_carriers():
     assert assistant == ("Done. Tests passed.", 19, True, True)
 
     metrics = connection.execute(
-        "SELECT source_files, human_messages, assistant_turns FROM session_metrics"
+        """
+        SELECT source_files, human_messages, assistant_turns,
+               tool_calls_per_human_message, edit_to_read_ratio
+        FROM session_metrics
+        """
     ).fetchone()
-    assert metrics == (1, 1, 2)
+    assert metrics == (1, 1, 2, 1.0, None)
+
+
+def test_tool_result_joins_back_to_originating_call():
+    connection = ingest(str(FIXTURE))
+
+    event = connection.execute(
+        """
+        SELECT tool_name, result_is_error, result_preview, result_block_id IS NOT NULL
+        FROM tool_events
+        """
+    ).fetchone()
+    assert event == ("Bash", False, "1 passed in 0.1s", True)
+
+
+def test_row_indexes_stay_stable_when_timestamps_collide_across_files():
+    connection = ingest(str(COLLISION_GLOB))
+
+    assert connection.execute("SELECT count(*) FROM jsonl_rows").fetchone() == (5,)
+
+    index_by_uuid = dict(
+        connection.execute("SELECT uuid, row_index_in_session FROM jsonl_rows").fetchall()
+    )
+    assert index_by_uuid == {"ca-1": 0, "ca-2": 1, "cb-1": 2, "cb-2": 3, "cb-3": 4}
+
+
+def test_completion_candidates_report_preview_is_full():
+    connection = ingest(str(COLLISION_GLOB))
+    connection.execute((ROOT / "schema" / "02_views.sql").read_text())
+
+    candidate = connection.execute(
+        "SELECT text_preview, preview_is_full FROM plausible_completion_candidates"
+    ).fetchone()
+    assert candidate == ("Done.", True)

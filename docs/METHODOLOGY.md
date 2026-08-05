@@ -133,7 +133,7 @@ base tables. The most useful for analysis:
 `analyses/*.sql` files demonstrate specific findings. Each file is
 self-contained and runnable as `duckdb your.duckdb < analyses/foo.sql`.
 
-The five analyses ship as starting points, not as exhaustive coverage of
+The analyses ship as starting points, not as exhaustive coverage of
 what the mart can produce. See the README for the headline findings each
 one supports.
 

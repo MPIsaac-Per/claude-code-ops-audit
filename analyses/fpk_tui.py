@@ -15,7 +15,6 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import curses
 import json
 import os
 import queue
@@ -26,7 +25,15 @@ from collections import Counter, defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Callable
+from typing import TYPE_CHECKING, Any, Callable
+
+if TYPE_CHECKING:
+    import curses
+else:
+    try:
+        import curses
+    except ImportError:  # stock Windows Python ships without curses
+        curses = None
 
 WRAPPER_TAGS = [
     "system-reminder",
@@ -403,7 +410,8 @@ def scan_corpus(
                 model = attributed_model(index, assistant_models)
                 version = row.get("version") or "unknown"
                 bucket = version_bucket(version)
-                month = str(row.get("timestamp") or "unknown")[:7]
+                ts = row.get("timestamp")
+                month = ts[:7] if isinstance(ts, str) and len(ts) >= 7 else "unknown"
                 category_counts = count_categories(cleaned)
                 count = sum(category_counts.values())
 
@@ -852,6 +860,11 @@ def main(argv: list[str] | None = None) -> int:
         result = scan_corpus(corpus, since)
         print_report(result, args.min_prompts)
         return 0
+
+    if curses is None:
+        print("The interactive TUI needs the curses module, which this Python", file=sys.stderr)
+        print("build does not include. Use --print for the static report.", file=sys.stderr)
+        return 2
 
     state = TuiState(corpus, since, args.min_prompts)
     curses.wrapper(tui_main, state)
