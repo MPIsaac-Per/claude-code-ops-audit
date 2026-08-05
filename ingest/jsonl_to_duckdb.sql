@@ -22,6 +22,11 @@
 --
 -- The progress_events and corpus_files tables are optional and depend on
 -- additional metadata not present in raw JSONL (file mtime, etc.).
+--
+-- Troubleshooting: a Binder Error like 'Referenced column "sessionId" not
+-- found' means the glob matched only empty or non-conforming files, so
+-- read_json inferred no schema. Point jsonl_glob at real Claude Code session
+-- logs. A glob that matches no files at all fails earlier with an IO Error.
 -- ============================================================================
 
 
@@ -366,6 +371,25 @@ joined AS (
     LEFT JOIN tool_results r
       ON r.session_id = u.session_id
      AND r.tool_use_id = u.tool_use_id
+),
+-- Nearest human message on either side of each tool event, by session row
+-- index. human_messages is already populated at this point in the script.
+with_humans AS (
+    SELECT
+        joined.*,
+        (
+            SELECT max(h.row_index_in_session)
+            FROM human_messages h
+            WHERE h.session_id = joined.session_id
+              AND h.row_index_in_session < joined.row_index_in_session
+        ) AS _prev_human_row,
+        (
+            SELECT min(h.row_index_in_session)
+            FROM human_messages h
+            WHERE h.session_id = joined.session_id
+              AND h.row_index_in_session > joined.row_index_in_session
+        ) AS _next_human_row
+    FROM joined
 )
 SELECT
     md5(session_id || '|' || row_index_in_session || '|' || block_index) AS tool_event_id,
@@ -395,11 +419,24 @@ SELECT
     lead(tool_name) OVER (PARTITION BY session_id ORDER BY row_index_in_session, block_index) AS next_tool_name,
     lead(tool_family) OVER (PARTITION BY session_id ORDER BY row_index_in_session, block_index) AS next_tool_family,
     lead(result_is_error) OVER (PARTITION BY session_id ORDER BY row_index_in_session, block_index) AS next_result_is_error,
-    NULL::UINTEGER AS distance_from_previous_human_message,
-    NULL::UINTEGER AS distance_to_next_human_message,
-    NULL::UINTEGER AS tools_since_previous_human,
-    NULL::UINTEGER AS tools_until_next_human
-FROM joined;
+    -- Distances are session-row deltas to the nearest human message; the tool
+    -- counts are 1-based positions within the run between two human messages.
+    -- All four are NULL when no human message exists on that side.
+    (row_index_in_session - _prev_human_row)::UINTEGER AS distance_from_previous_human_message,
+    (_next_human_row - row_index_in_session)::UINTEGER AS distance_to_next_human_message,
+    CASE WHEN _prev_human_row IS NOT NULL THEN
+        row_number() OVER (
+            PARTITION BY session_id, _prev_human_row
+            ORDER BY row_index_in_session, block_index
+        )::UINTEGER
+    END AS tools_since_previous_human,
+    CASE WHEN _next_human_row IS NOT NULL THEN
+        row_number() OVER (
+            PARTITION BY session_id, _next_human_row
+            ORDER BY row_index_in_session DESC, block_index DESC
+        )::UINTEGER
+    END AS tools_until_next_human
+FROM with_humans;
 
 
 -- ----------------------------------------------------------------------------

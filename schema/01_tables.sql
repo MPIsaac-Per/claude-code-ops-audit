@@ -200,8 +200,9 @@ CREATE TABLE IF NOT EXISTS human_messages (
 -- ----------------------------------------------------------------------------
 -- tool_events
 -- One row per tool_use, joined with its corresponding tool_result.
--- Adds sequencing info (previous/next tool). The four distance-to-human
--- columns are reserved; the shipped ingest leaves them NULL.
+-- Adds sequencing info: previous/next tool, session-row distances to the
+-- nearest human message, and 1-based tool positions within the run between
+-- two human messages (NULL when no human message exists on that side).
 -- This is the main analysis table for tool behavior.
 -- ----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS tool_events (

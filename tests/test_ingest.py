@@ -77,6 +77,21 @@ def test_row_indexes_stay_stable_when_timestamps_collide_across_files():
     assert index_by_uuid == {"ca-1": 0, "ca-2": 1, "cb-1": 2, "cb-2": 3, "cb-3": 4}
 
 
+def test_tool_event_distances_to_human_messages():
+    connection = ingest(str(FIXTURE))
+
+    distances = connection.execute(
+        """
+        SELECT distance_from_previous_human_message, distance_to_next_human_message,
+               tools_since_previous_human, tools_until_next_human
+        FROM tool_events
+        """
+    ).fetchone()
+    # The fixture's one tool event sits one row after the only human message,
+    # with no human message after it.
+    assert distances == (1, None, 1, None)
+
+
 def test_completion_candidates_report_preview_is_full():
     connection = ingest(str(COLLISION_GLOB))
     connection.execute((ROOT / "schema" / "02_views.sql").read_text())

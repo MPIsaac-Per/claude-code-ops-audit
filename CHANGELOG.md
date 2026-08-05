@@ -4,6 +4,15 @@ This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) an
 
 ## [Unreleased]
 
+### Added
+
+- `tool_events` populates the four distance-to-human columns: session-row
+  distances to the nearest human message and 1-based tool positions within
+  the run between two human messages.
+- Ingest header documents the Binder Error produced when the glob matches
+  only empty or non-conforming files.
+- Release process documents the SSH tag-signing configuration.
+
 ## [0.1.1] - 2026-08-05
 
 ### Added
