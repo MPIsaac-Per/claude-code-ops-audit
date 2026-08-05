@@ -30,6 +30,9 @@ this pipeline against them and reproduce the analyses on your own data.
 | `analyses/cache_economics.sql` | Cache-read leverage by session depth |
 | `analyses/session_endings.sql` | How sessions actually terminate |
 | `analyses/error_distribution.sql` | Which tools fail, how, and how often |
+| `analyses/first_read_efficiency.sql` | Whether fewer pre-edit Reads correlate with fewer downstream errors and tool calls |
+| `analyses/search_share_vs_pgr.sql` | Replicates the entire.io/pgr search-share split on a Claude Code corpus |
+| `analyses/tool_family_latency.sql` | Per-tool-family wall-clock latency estimated from successive JSONL timestamps |
 | `analyses/field_manual_protocols.sql` | Field Manual query pack: autonomy half-life, agent loop map, verification-debt surface, stuckness cost, and rescue patterns |
 | `analyses/codex_telemetry_filtered.sql` | Codex/OpenTelemetry runtime analysis with stream-loop span and response-delta noise separated from operational telemetry |
 | `analyses/build_conversation_archive_catalog.py` | Catalog every rolling conversation blob while marking the canonical latest snapshot per session |
@@ -89,6 +92,9 @@ duckdb ~/data/claude_code.duckdb < analyses/model_drift.sql
 duckdb ~/data/claude_code.duckdb < analyses/cache_economics.sql
 duckdb ~/data/claude_code.duckdb < analyses/session_endings.sql
 duckdb ~/data/claude_code.duckdb < analyses/error_distribution.sql
+duckdb ~/data/claude_code.duckdb < analyses/first_read_efficiency.sql
+duckdb ~/data/claude_code.duckdb < analyses/search_share_vs_pgr.sql
+duckdb ~/data/claude_code.duckdb < analyses/tool_family_latency.sql
 ```
 
 The fpk analyses operate on raw JSONL directly (no mart required):
