@@ -105,21 +105,21 @@ FROM trans, totals
 UNION ALL
 SELECT
     'search_edit_shell_core' AS pattern,
-    sum(CASE WHEN tool_family IN ('file_search', 'file_edit', 'file_read', 'file_write', 'shell')
-              AND next_tool_family IN ('file_search', 'file_edit', 'file_read', 'file_write', 'shell')
+    sum(CASE WHEN tool_family IN ('file_search', 'file_read', 'file_write', 'shell')
+              AND next_tool_family IN ('file_search', 'file_read', 'file_write', 'shell')
              THEN transitions ELSE 0 END) AS transitions,
-    round(100.0 * sum(CASE WHEN tool_family IN ('file_search', 'file_edit', 'file_read', 'file_write', 'shell')
-                            AND next_tool_family IN ('file_search', 'file_edit', 'file_read', 'file_write', 'shell')
+    round(100.0 * sum(CASE WHEN tool_family IN ('file_search', 'file_read', 'file_write', 'shell')
+                            AND next_tool_family IN ('file_search', 'file_read', 'file_write', 'shell')
                            THEN transitions ELSE 0 END) / max(total_transitions), 1) AS pct
 FROM trans, totals
 UNION ALL
 SELECT
     'shell_edit_back_and_forth' AS pattern,
-    sum(CASE WHEN (tool_family = 'shell' AND next_tool_family IN ('file_edit', 'file_read', 'file_write'))
-               OR (tool_family IN ('file_edit', 'file_read', 'file_write') AND next_tool_family = 'shell')
+    sum(CASE WHEN (tool_family = 'shell' AND next_tool_family IN ('file_read', 'file_write'))
+               OR (tool_family IN ('file_read', 'file_write') AND next_tool_family = 'shell')
              THEN transitions ELSE 0 END) AS transitions,
-    round(100.0 * sum(CASE WHEN (tool_family = 'shell' AND next_tool_family IN ('file_edit', 'file_read', 'file_write'))
-                              OR (tool_family IN ('file_edit', 'file_read', 'file_write') AND next_tool_family = 'shell')
+    round(100.0 * sum(CASE WHEN (tool_family = 'shell' AND next_tool_family IN ('file_read', 'file_write'))
+                              OR (tool_family IN ('file_read', 'file_write') AND next_tool_family = 'shell')
                            THEN transitions ELSE 0 END) / max(total_transitions), 1) AS pct
 FROM trans, totals;
 
@@ -143,7 +143,7 @@ SELECT
     sum(CASE WHEN completion_claim THEN 1 ELSE 0 END) AS completion_claim_turns,
     sum(CASE WHEN completion_claim AND verification_claim THEN 1 ELSE 0 END) AS completion_with_same_turn_verification,
     (SELECT count(*) FROM plausible_completion_candidates) AS plausible_completion_candidates,
-    round(100.0 * (SELECT count(*) FROM plausible_completion_candidates) / count(*), 2) AS pct_all_turns_flagged,
+    round(100.0 * (SELECT count(*) FROM plausible_completion_candidates) / NULLIF(count(*), 0), 2) AS pct_all_turns_flagged,
     round(100.0 * (SELECT count(*) FROM plausible_completion_candidates) / NULLIF(sum(CASE WHEN completion_claim THEN 1 ELSE 0 END), 0), 1) AS pct_completion_claims_flagged
 FROM assistant_turns;
 
@@ -185,11 +185,11 @@ labeled AS (
         coalesce(ee.explicit_error_events, 0) AS error_events,
         sm.tool_events,
         sm.human_messages,
-        tb.total_tokens,
-        tb.cache_read,
-        tb.output_tokens
+        coalesce(tb.total_tokens, 0) AS total_tokens,
+        coalesce(tb.cache_read, 0) AS cache_read,
+        coalesce(tb.output_tokens, 0) AS output_tokens
     FROM session_metrics sm
-    JOIN token_by_session tb USING (session_id)
+    LEFT JOIN token_by_session tb USING (session_id)
     LEFT JOIN explicit_errors_by_session ee USING (session_id)
 )
 SELECT
@@ -230,16 +230,16 @@ labeled AS (
     SELECT
         sm.session_id,
         coalesce(ee.explicit_error_events, 0) AS error_events,
-        tb.total_tokens
+        coalesce(tb.total_tokens, 0) AS total_tokens
     FROM session_metrics sm
-    JOIN token_by_session tb USING (session_id)
+    LEFT JOIN token_by_session tb USING (session_id)
     LEFT JOIN explicit_errors_by_session ee USING (session_id)
 )
 SELECT
     round(100.0 * sum(CASE WHEN error_events >= 10 THEN 1 ELSE 0 END) / count(*), 1) AS pct_sessions_10plus_errors,
-    round(100.0 * sum(CASE WHEN error_events >= 10 THEN total_tokens ELSE 0 END) / sum(total_tokens), 1) AS pct_tokens_in_10plus_error_sessions,
+    round(100.0 * sum(CASE WHEN error_events >= 10 THEN total_tokens ELSE 0 END) / NULLIF(sum(total_tokens), 0), 1) AS pct_tokens_in_10plus_error_sessions,
     round(100.0 * sum(CASE WHEN error_events = 0 THEN 1 ELSE 0 END) / count(*), 1) AS pct_sessions_no_errors,
-    round(100.0 * sum(CASE WHEN error_events = 0 THEN total_tokens ELSE 0 END) / sum(total_tokens), 1) AS pct_tokens_in_no_error_sessions
+    round(100.0 * sum(CASE WHEN error_events = 0 THEN total_tokens ELSE 0 END) / NULLIF(sum(total_tokens), 0), 1) AS pct_tokens_in_no_error_sessions
 FROM labeled;
 
 

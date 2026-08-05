@@ -55,7 +55,7 @@ CREATE TABLE IF NOT EXISTS jsonl_rows (
     "timestamp"                  TIMESTAMP WITH TIME ZONE,
     cwd                          VARCHAR,
     project                      VARCHAR,
-    environment                  VARCHAR,        -- 'macbook', 'server', etc.
+    environment                  VARCHAR,        -- optional user tag; the shipped ingest leaves it NULL
     "version"                    VARCHAR,        -- Claude Code version, e.g. '2.1.119'
     git_branch                   VARCHAR,
     entrypoint                   VARCHAR,
@@ -200,7 +200,8 @@ CREATE TABLE IF NOT EXISTS human_messages (
 -- ----------------------------------------------------------------------------
 -- tool_events
 -- One row per tool_use, joined with its corresponding tool_result.
--- Adds sequencing info (previous/next tool, distances to human messages).
+-- Adds sequencing info (previous/next tool). The four distance-to-human
+-- columns are reserved; the shipped ingest leaves them NULL.
 -- This is the main analysis table for tool behavior.
 -- ----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS tool_events (

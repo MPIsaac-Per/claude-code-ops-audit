@@ -8,6 +8,10 @@
 --   - 35.6% end with a completion claim but no verification keyword
 --   - 15.4% end mid-tool-stream (the agent was still working when terminated)
 --   - 5.8% end cleanly with both completion and verification
+--
+-- Two smaller buckets also appear: 'session ends with tool + completion claim'
+-- (the closing turn claims completion without a verification keyword while
+-- still firing tools) and 'other' (empty final turns).
 -- ============================================================================
 
 
@@ -28,8 +32,10 @@ WITH last_turns AS (
 SELECT
     CASE
         WHEN final_tools > 0 AND completion_claim = FALSE THEN 'session ends mid-tool-stream'
-        WHEN final_tools > 0 AND completion_claim         THEN 'session ends with tool + completion claim'
+        -- Verified endings win over the tool + completion bucket, so a closing
+        -- turn that both claims and verifies is never counted as unverified.
         WHEN completion_claim AND verification_claim       THEN 'session ends with claim + verification'
+        WHEN final_tools > 0 AND completion_claim         THEN 'session ends with tool + completion claim'
         WHEN completion_claim AND NOT verification_claim   THEN 'session ends with completion claim, no verification'
         WHEN NOT completion_claim AND final_text_chars > 0 THEN 'session ends with text, no claim'
         ELSE 'other'
