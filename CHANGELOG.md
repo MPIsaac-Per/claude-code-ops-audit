@@ -12,6 +12,9 @@ This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) an
 - Ingest header documents the Binder Error produced when the glob matches
   only empty or non-conforming files.
 - Release process documents the SSH tag-signing configuration.
+- Root `Makefile` adds `help`, `mart`, `analyses`, `report`, and `check`
+  targets wrapping the duckdb ingest pipeline, per-file analysis runs, and
+  the CONTRIBUTING.md dev-check suite.
 
 ## [0.1.1] - 2026-08-05
 
