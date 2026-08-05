@@ -15,6 +15,9 @@ This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) an
 - Root `Makefile` adds `help`, `mart`, `analyses`, `report`, and `check`
   targets wrapping the duckdb ingest pipeline, per-file analysis runs, and
   the CONTRIBUTING.md dev-check suite.
+- `analyses/build_report.py` builds a self-describing Markdown report (corpus
+  summary, caveats, per-analysis header prose and query output) by shelling
+  out to the duckdb CLI; `make report` now calls it directly.
 
 ## [0.1.1] - 2026-08-05
 
