@@ -9,11 +9,11 @@ authors = [{ name = "Michael Isaac" }]
 dependencies = []
 
 [project.optional-dependencies]
-audit = ["anthropic>=0.116,<1"]
+audit = ["anthropic>=0.116,<2"]
 
 [dependency-groups]
 dev = [
-  "anthropic>=0.116,<1",
+  "anthropic>=0.116,<2",
   "duckdb>=1.5,<2",
   "mypy>=1.19,<3",
   "pip-audit>=2.10,<3",
